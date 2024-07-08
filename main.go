@@ -1,27 +1,23 @@
 package main
 
 import (
-    "encoding/json"
-    "log"
-    "math/rand"
-    "net/http"
-    "strconv"
+	"log"
+	"net/http"
 
-    "github.com/gorilla/mux"
+	"TravelBuddy/controllers"
+	"github.com/gorilla/mux"
 )
 
 func main() {
-    r := mux.NewRouter()
+	r := mux.NewRouter()
 
-    // Pre-populate with some users (optional)
-    users = append(users, User{Username: "user1", Email: "user1@example.com", PasswordHash: hashPassword("password1")})
-    users = append(users, User{Username: "user2", Email: "user2@example.com", PasswordHash: hashPassword("password2")})
+	// Pre-populate with some users (optional)
 
-    r.HandleFunc("/users", getUsers).Methods("GET")
-    r.HandleFunc("/users/{username}", getUser).Methods("GET")
-    r.HandleFunc("/users", createUser).Methods("POST")
-    r.HandleFunc("/users/{username}", updateUser).Methods("PUT")
-    r.HandleFunc("/users/{username}", deleteUser).Methods("DELETE")
+	r.HandleFunc("/users", controllers.GetUsers).Methods("GET")
+	r.HandleFunc("/users/{username}", controllers.GetUser).Methods("GET")
+	r.HandleFunc("/users", controllers.CreateUser).Methods("POST")
+	r.HandleFunc("/users/{username}", controllers.UpdateUser).Methods("PUT")
+	r.HandleFunc("/users/{username}", controllers.DeleteUser).Methods("DELETE")
 
-    log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }

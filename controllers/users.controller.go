@@ -1,5 +1,19 @@
-func createUser(w http.ResponseWriter, r *http.Request) {
-    var user User
+package controllers
+
+import (
+	"TravelBuddy/models"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"github.com/gorilla/mux"
+)
+
+var users []models.User
+
+func CreateUser(w http.ResponseWriter, r *http.Request) {
+    var user models.User
     err := json.NewDecoder(r.Body).Decode(&user)
     if err != nil {
         http.Error(w, err.Error(), http.StatusBadRequest)
@@ -19,12 +33,12 @@ func hashPassword(password string) string {
     return fmt.Sprintf("%x", sha256.Sum256([]byte(password)))
 }
 
-func getUsers(w http.ResponseWriter, r *http.Request) {
+func GetUsers(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(users)
 }
 
-func getUser(w http.ResponseWriter, r *http.Request) {
+func GetUser(w http.ResponseWriter, r *http.Request) {
     params := mux.Vars(r)
     for _, user := range users {
         if user.Username == params["username"] {
@@ -36,12 +50,12 @@ func getUser(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "User not found", http.StatusNotFound)
 }
 
-func updateUser(w http.ResponseWriter, r *http.Request) {
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
     params := mux.Vars(r)
     for index, user := range users {
         if user.Username == params["username"] {
             users = append(users[:index], users[index+1:]...)
-            var updatedUser User
+            var updatedUser models.User
             err := json.NewDecoder(r.Body).Decode(&updatedUser)
             if err != nil {
                 http.Error(w, err.Error(), http.StatusBadRequest)
@@ -59,7 +73,7 @@ func updateUser(w http.ResponseWriter, r *http.Request) {
     http.Error(w, "User not found", http.StatusNotFound)
 }
 
-func deleteUser(w http.ResponseWriter, r *http.Request) {
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
     params := mux.Vars(r)
     for index, user := range users {
         if user.Username == params["username"] {
