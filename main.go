@@ -3,9 +3,10 @@ package main
 import (
 	"log"
 	"net/http"
+	"github.com/gorilla/mux"
 
 	"TravelBuddy/controllers"
-	"github.com/gorilla/mux"
+    "TravelBuddy/middlewares"
 )
 
 func main() {
@@ -16,8 +17,12 @@ func main() {
 	r.HandleFunc("/users", controllers.GetUsers).Methods("GET")
 	r.HandleFunc("/users/{username}", controllers.GetUser).Methods("GET")
 	r.HandleFunc("/users", controllers.CreateUser).Methods("POST")
-	r.HandleFunc("/users/{username}", controllers.UpdateUser).Methods("PUT")
-	r.HandleFunc("/users/{username}", controllers.DeleteUser).Methods("DELETE")
+
+    updateUserHandler := middlewares.LoggerMiddleware(http.HandlerFunc(controllers.UpdateUser))
+	r.Handle("/users/{username}", updateUserHandler).Methods("PUT")
+
+    deleteUserHandler := middlewares.LoggerMiddleware(http.HandlerFunc(controllers.DeleteUser))
+	r.Handle("/users/{username}", deleteUserHandler).Methods("DELETE")
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
