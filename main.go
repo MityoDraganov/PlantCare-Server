@@ -2,39 +2,42 @@ package main
 
 import (
 	"fmt"
-	"context"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 
 	"TravelBuddy/controllers"
 	"TravelBuddy/middlewares"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+
+	"gorm.io/driver/sqlserver"
+	"gorm.io/gorm"
+	"TravelBuddy/models"
 )
+
+func InitDB() *gorm.DB {
+	dsn := "sqlserver://server:server123@localhost:1433?database=Travel_Buddy"
+	db, err := gorm.Open(sqlserver.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("failed to connect database:", err)
+	}
+	return db
+}
 
 func main() {
 	r := mux.NewRouter()
 
-	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-	opts := options.Client().ApplyURI("mongodb+srv://server:server123@cluster0.jmfnonn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0").SetServerAPIOptions(serverAPI)
+	db := InitDB()
 
-	client, err := mongo.Connect(context.TODO(), opts)
+	err := db.AutoMigrate(&models.User{}, &models.Passenger{}, &models.Trip{})
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to migrate database:", err)
 	}
-	defer func() {
-		if err = client.Disconnect(context.TODO()); err != nil {
-			panic(err)
-		}
-	}()
-	// Send a ping to confirm a successful connection
-	if err := client.Database("admin").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Err(); err != nil {
-		panic(err)
-	}
-	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
+
+	fmt.Println("Pinged your deployment. You successfully connected to SQL Server!")
 	// Pre-populate with some users (optional)
+
+	//tripCollection := client.Database("travelbuddy").Collection("trips")
+	//controllers.SetTripCollection(tripCollection)
 
 	r.HandleFunc("/users", controllers.GetUsers).Methods("GET")
 	r.HandleFunc("/users/{username}", controllers.GetUser).Methods("GET")
@@ -45,6 +48,10 @@ func main() {
 
 	deleteUserHandler := middlewares.LoggerMiddleware(http.HandlerFunc(controllers.DeleteUser))
 	r.Handle("/users/{username}", deleteUserHandler).Methods("DELETE")
+
+	r.HandleFunc("/trips", controllers.CreateTrip).Methods("POST")
+	r.HandleFunc("/trips", controllers.DeleteTrip).Methods("DELETE")
+	r.HandleFunc("/trips", controllers.UpdateTrip).Methods("PUT")
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
