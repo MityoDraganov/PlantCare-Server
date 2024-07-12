@@ -9,9 +9,9 @@ import (
 	"TravelBuddy/controllers"
 	"TravelBuddy/middlewares"
 
+	"TravelBuddy/models"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
-	"TravelBuddy/models"
 )
 
 func InitDB() *gorm.DB {
@@ -27,6 +27,7 @@ func main() {
 	r := mux.NewRouter()
 
 	db := InitDB()
+	controllers.SetDatabase(db)
 
 	err := db.AutoMigrate(&models.User{}, &models.Passenger{}, &models.Trip{})
 	if err != nil {
@@ -34,14 +35,14 @@ func main() {
 	}
 
 	fmt.Println("Pinged your deployment. You successfully connected to SQL Server!")
-	// Pre-populate with some users (optional)
 
 	//tripCollection := client.Database("travelbuddy").Collection("trips")
 	//controllers.SetTripCollection(tripCollection)
 
 	r.HandleFunc("/users", controllers.GetUsers).Methods("GET")
 	r.HandleFunc("/users/{username}", controllers.GetUser).Methods("GET")
-	r.HandleFunc("/users", controllers.CreateUser).Methods("POST")
+	r.HandleFunc("/auth/register", controllers.CreateUser).Methods("POST")
+	r.HandleFunc("/auth/login", controllers.LoginUser).Methods("POST")
 
 	updateUserHandler := middlewares.LoggerMiddleware(http.HandlerFunc(controllers.UpdateUser))
 	r.Handle("/users/{username}", updateUserHandler).Methods("PUT")
