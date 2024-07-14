@@ -32,11 +32,11 @@ func (c Coordinates) Value() (driver.Value, error) {
 
 type Trip struct {
 	gorm.Model
-	DriverID           uint         `json:"driver_id"`
-	Driver             User         `gorm:"foreignKey:DriverID"`
-	CurrentPassengers  []Passenger  `gorm:"many2many:trip_passengers;"`
-	StartPoint         Coordinates  `json:"startPoint" validate:"required"`
-	EndPoint           Coordinates   `json:"endPoint" validate:"required"`
-	MaxAvailableSeats  int          `json:"maxAvailableSeats" validate:"required"`
-	Description        string       `json:"description"`
+	DriverID          uint        `json:"driver_id"`
+	Driver            User        `gorm:"foreignKey:DriverID"`
+	CurrentPassengers []Passenger `gorm:"many2many:trip_passengers;"`
+	StartPoint        Coordinates `json:"startPoint" validate:"required"`
+	EndPoint          Coordinates `json:"endPoint" validate:"required"`
+	MaxAvailableSeats int         `json:"maxAvailableSeats" validate:"required"`
+	Description       string      `json:"description"`
 }

@@ -8,7 +8,6 @@ import (
 
 	"TravelBuddy/controllers"
 	"TravelBuddy/middlewares"
-
 	"TravelBuddy/models"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
@@ -44,10 +43,10 @@ func main() {
 	r.HandleFunc("/auth/register", controllers.CreateUser).Methods("POST")
 	r.HandleFunc("/auth/login", controllers.LoginUser).Methods("POST")
 
-	updateUserHandler := middlewares.LoggerMiddleware(http.HandlerFunc(controllers.UpdateUser))
+	updateUserHandler := middlewares.TokenMiddleware(http.HandlerFunc(controllers.UpdateUser))
 	r.Handle("/users/{username}", updateUserHandler).Methods("PUT")
 
-	deleteUserHandler := middlewares.LoggerMiddleware(http.HandlerFunc(controllers.DeleteUser))
+	deleteUserHandler := middlewares.TokenMiddleware(http.HandlerFunc(controllers.DeleteUser))
 	r.Handle("/users/{username}", deleteUserHandler).Methods("DELETE")
 
 	r.HandleFunc("/trips", controllers.CreateTrip).Methods("POST")

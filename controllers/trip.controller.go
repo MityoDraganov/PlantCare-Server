@@ -40,7 +40,7 @@ func UpdateTrip(w http.ResponseWriter, r *http.Request) {
 	var trip models.Trip
 	result := findTripById(id)
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		http.Error(w, result.Error.Error(), http.StatusNotFound)
 		return
 	}
 
