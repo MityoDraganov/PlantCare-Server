@@ -7,7 +7,7 @@ import (
 	"TravelBuddy/models"
 
 	"github.com/gorilla/mux"
-	"gorm.io/gorm"
+
 )
 
 func CreateTrip(w http.ResponseWriter, r *http.Request) {
@@ -37,21 +37,21 @@ func CreateTrip(w http.ResponseWriter, r *http.Request) {
 func UpdateTrip(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
-	var trip models.Trip
-	result := findTripById(id)
-	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusNotFound)
+
+	trip, err := findTripById(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
 	var updatedTrip models.Trip
-	err := json.NewDecoder(r.Body).Decode(&updatedTrip)
+	err = json.NewDecoder(r.Body).Decode(&updatedTrip)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	result = db.Model(&trip).Updates(updatedTrip)
+	result := db.Model(&trip).Updates(updatedTrip)
 	if result.Error != nil {
 		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
 		return
@@ -75,9 +75,22 @@ func DeleteTrip(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"result": "success"})
 }
 
-func findTripById(id string) *gorm.DB {
+func addPassenger(tripId string, Passenger models.Passenger) (error){
+	trip,_ := findTripById(tripId)
+
+	trip.CurrentPassengers = append(trip.CurrentPassengers, Passenger)
+	result := db.Save(&trip)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+func findTripById(id string) (*models.Trip, error) {
 	var trip models.Trip
 	result := db.First(&trip, "id = ?", id)
-
-	return result
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &trip, nil
 }

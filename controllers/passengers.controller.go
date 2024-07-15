@@ -55,8 +55,11 @@ func DenyTrip(w http.ResponseWriter, r *http.Request) {
 }
 
 func AcceptPassenger(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	passenger, err := findPassengerById(id)
+	params := mux.Vars(r)
+	tripId := params["tripId"]
+	passengerId := params["passengerId"]
+
+	passenger, err := findPassengerById(passengerId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -69,6 +72,8 @@ func AcceptPassenger(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	addPassenger(tripId, *passenger)
 
 	w.WriteHeader(http.StatusOK)
 }
