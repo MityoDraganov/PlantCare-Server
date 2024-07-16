@@ -62,7 +62,7 @@
 			return
 		}
 
-		token, err := utils.GenerateJWT(user.Username, user.Email)
+		token, err := utils.GenerateJWT(user.ID, user.Username, user.Email)
 		if err != nil {
 			fmt.Println(err)
 			return

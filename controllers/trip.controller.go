@@ -3,11 +3,13 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
+	"TravelBuddy/middlewares"
 	"TravelBuddy/models"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
-
 )
 
 func CreateTrip(w http.ResponseWriter, r *http.Request) {
@@ -18,12 +20,31 @@ func CreateTrip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Extract the driver's ID from the request context
+	claims, ok := r.Context().Value(middlewares.UserContextKey).(*jwt.RegisteredClaims)
+	if !ok {
+		http.Error(w, "Unable to retrieve claims", http.StatusInternalServerError)
+		return
+	}
+	driverID := claims.Subject
+
+	// Convert driverID to uint and assign to trip
+	driverIDUint64, err := strconv.ParseUint(driverID, 10, 64)
+	println(driverIDUint64, driverID)
+	if err != nil {
+		http.Error(w, "Invalid driver ID", http.StatusBadRequest)
+		return
+	}
+	trip.DriverID = uint(driverIDUint64)
+
+	// Validate the trip
 	err = validate.Struct(trip)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	// Save the trip to the database
 	result := db.Create(&trip)
 	if result.Error != nil {
 		http.Error(w, result.Error.Error(), http.StatusInternalServerError)

@@ -35,23 +35,26 @@ func main() {
 
 	fmt.Println("Pinged your deployment. You successfully connected to SQL Server!")
 
-	//tripCollection := client.Database("travelbuddy").Collection("trips")
-	//controllers.SetTripCollection(tripCollection)
+	// Public routes
+	publicRoutes := r.PathPrefix("/auth").Subrouter()
+	publicRoutes.HandleFunc("/register", controllers.CreateUser).Methods("POST")
+	publicRoutes.HandleFunc("/login", controllers.LoginUser).Methods("POST")
 
-	r.HandleFunc("/users", controllers.GetUsers).Methods("GET")
-	r.HandleFunc("/users/{username}", controllers.GetUser).Methods("GET")
-	r.HandleFunc("/auth/register", controllers.CreateUser).Methods("POST")
-	r.HandleFunc("/auth/login", controllers.LoginUser).Methods("POST")
+	// Apply middleware to all other routes
+	protectedRoutes := r.PathPrefix("/").Subrouter()
+	protectedRoutes.Use(middlewares.TokenMiddleware)
 
-	updateUserHandler := middlewares.TokenMiddleware(http.HandlerFunc(controllers.UpdateUser))
-	r.Handle("/users/{username}", updateUserHandler).Methods("PUT")
+	// User routes
+	protectedRoutes.HandleFunc("/users", controllers.GetUsers).Methods("GET")
+	protectedRoutes.HandleFunc("/users/{username}", controllers.GetUser).Methods("GET")
+	protectedRoutes.HandleFunc("/users/{username}", controllers.UpdateUser).Methods("PUT")
+	protectedRoutes.HandleFunc("/users/{username}", controllers.DeleteUser).Methods("DELETE")
 
-	deleteUserHandler := middlewares.TokenMiddleware(http.HandlerFunc(controllers.DeleteUser))
-	r.Handle("/users/{username}", deleteUserHandler).Methods("DELETE")
-
-	r.HandleFunc("/trips", controllers.CreateTrip).Methods("POST")
-	r.HandleFunc("/trips", controllers.DeleteTrip).Methods("DELETE")
-	r.HandleFunc("/trips", controllers.UpdateTrip).Methods("PUT")
+	// Trip routes
+	protectedRoutes.HandleFunc("/trips", controllers.CreateTrip).Methods("POST")
+	protectedRoutes.HandleFunc("/trips", controllers.DeleteTrip).Methods("DELETE")
+	protectedRoutes.HandleFunc("/trips", controllers.UpdateTrip).Methods("PUT")
 
 	log.Fatal(http.ListenAndServe(":8080", r))
+	fmt.Println("Server listening on port 8080 !")
 }
