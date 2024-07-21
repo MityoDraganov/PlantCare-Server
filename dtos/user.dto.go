@@ -14,6 +14,6 @@ type LoginUserDto struct {
 
 type AuthResponse struct {
 	Username string
-	Email string
-	Token string
+	Email    string
+	Token    string
 }

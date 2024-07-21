@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"TravelBuddy/utils"
+	"PlantCare/utils"
 )
 
 type ContextKey string

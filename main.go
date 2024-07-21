@@ -6,15 +6,15 @@ import (
 	"log"
 	"net/http"
 
-	"TravelBuddy/controllers"
-	"TravelBuddy/middlewares"
-	"TravelBuddy/models"
+	"PlantCare/controllers"
+	"PlantCare/middlewares"
+	"PlantCare/models"
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 )
 
 func InitDB() *gorm.DB {
-	dsn := "sqlserver://server:server123@localhost:1433?database=Travel_Buddy"
+	dsn := "sqlserver://server:server123@localhost:1433?database=Plant_Care"
 	db, err := gorm.Open(sqlserver.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database:", err)
@@ -28,7 +28,7 @@ func main() {
 	db := InitDB()
 	controllers.SetDatabase(db)
 
-	err := db.AutoMigrate(&models.User{}, &models.Passenger{}, &models.Trip{})
+	err := db.AutoMigrate(&models.User{}, &models.CropPot{})
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}
@@ -50,10 +50,10 @@ func main() {
 	protectedRoutes.HandleFunc("/users/{username}", controllers.UpdateUser).Methods("PUT")
 	protectedRoutes.HandleFunc("/users/{username}", controllers.DeleteUser).Methods("DELETE")
 
-	// Trip routes
-	protectedRoutes.HandleFunc("/trips", controllers.CreateTrip).Methods("POST")
-	protectedRoutes.HandleFunc("/trips", controllers.DeleteTrip).Methods("DELETE")
-	protectedRoutes.HandleFunc("/trips", controllers.UpdateTrip).Methods("PUT")
+	// Crop Pot routes
+	protectedRoutes.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
+	protectedRoutes.HandleFunc("/cropPots/{id}", controllers.UpdateCropPot).Methods("PUT")
+
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 	fmt.Println("Server listening on port 8080 !")

@@ -1,4 +1,4 @@
-module TravelBuddy
+module PlantCare
 
 go 1.22.4
 

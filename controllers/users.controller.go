@@ -1,14 +1,14 @@
 package controllers
 
 import (
-	"TravelBuddy/dtos"
-	"TravelBuddy/models"
+	"PlantCare/dtos"
+	"PlantCare/models"
 	"encoding/json"
 	"fmt"
 
 	"net/http"
 
-	"TravelBuddy/utils"
+	"PlantCare/utils"
 
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
@@ -81,7 +81,8 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 func LoginUser(w http.ResponseWriter, r *http.Request) {
 	var userDto dtos.LoginUserDto
-	var user models.User
+	var user *models.User
+
 	err := json.NewDecoder(r.Body).Decode(&userDto)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -94,20 +95,42 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := findUserByEmail(userDto.Email)
+	user, err = findUserByEmail(userDto.Email)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		// Debug: Print error if user not found
+		fmt.Println("User not found:", err)
+		http.Error(w, "Wrong email or password!", http.StatusUnauthorized)
 		return
 	}
 
+	// Debug: Print user details fetched from the database
+	fmt.Printf("User fetched: %+v\n", user)
+
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(userDto.Password))
 	if err != nil {
-		fmt.Println("Password does not match.")
+		// Debug: Print error if password comparison fails
+		fmt.Println("Password mismatch:", err)
+		http.Error(w, "Wrong email or password!", http.StatusUnauthorized)
+		return
+	}
+
+	// Generate JWT token
+	token, err := utils.GenerateJWT(user.ID, user.Username, user.Email)
+	if err != nil {
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	response := dtos.AuthResponse{
+		Username: user.Username,
+		Email:    user.Email,
+		Token:    token,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	json.NewEncoder(w).Encode(response)
 }
+
 
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
