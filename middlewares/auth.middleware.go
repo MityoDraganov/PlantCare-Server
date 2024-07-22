@@ -20,7 +20,7 @@ func TokenMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// The token usually comes as "Bearer <token>"
+		// "Bearer <token>"
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -34,8 +34,6 @@ func TokenMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		println("Parsed userID:", claims.UserID)
-		// Attach the userID to the request context
 		ctx := context.WithValue(r.Context(), ClaimsKey, claims)
 		r = r.WithContext(ctx)
 

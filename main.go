@@ -54,6 +54,7 @@ func main() {
 	protectedRoutes.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
 	protectedRoutes.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
 	protectedRoutes.HandleFunc("/cropPots/{id}", controllers.UpdateCropPot).Methods("PUT")
+	protectedRoutes.HandleFunc("/cropPots/{id}", controllers.RemoveCropPot).Methods("DELETE")
 
 
 	log.Fatal(http.ListenAndServe(":8080", r))
