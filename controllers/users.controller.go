@@ -30,18 +30,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if password and rePassword match
-	if userDto.Password != userDto.RePassword {
-		http.Error(w, "Passwords do not match", http.StatusBadRequest)
-		return
-	}
-
-	// Check password length
-	if len(userDto.Password) < 8 {
-		http.Error(w, "Password must be at least 8 characters long", http.StatusBadRequest)
-		return
-	}
-
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(userDto.Password), bcrypt.DefaultCost)
 	if err != nil {

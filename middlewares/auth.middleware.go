@@ -8,9 +8,9 @@ import (
 	"PlantCare/utils"
 )
 
-type ContextKey string
+type contextKey string
 
-const UserContextKey = ContextKey("user")
+const ClaimsKey = contextKey("claims")
 
 func TokenMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,14 +28,15 @@ func TokenMiddleware(next http.Handler) http.Handler {
 		}
 
 		// Parse and validate the token
-		token, claims, err := utils.ParseToken(tokenString)
+		token, claims, err := utils.ParseJWT(tokenString)
 		if err != nil || !token.Valid {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		// Attach the claims to the request context
-		ctx := context.WithValue(r.Context(), UserContextKey, claims)
+		println("Parsed userID:", claims.UserID)
+		// Attach the userID to the request context
+		ctx := context.WithValue(r.Context(), ClaimsKey, claims)
 		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"errors"
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
@@ -9,20 +9,27 @@ import (
 
 var jwtKey = []byte("your-256-bit-secret")
 
-func GenerateJWT(Id uint, username string, email string) (string, error) {
-	// Define token expiration time
+type CustomClaims struct {
+	UserID   uint   `json:"user_id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	jwt.RegisteredClaims
+}
+
+func GenerateJWT(userId uint, username string, email string) (string, error) {
 	expirationTime := time.Now().Add(72 * time.Hour)
 
-	// Create claims
-	claims := &jwt.RegisteredClaims{
-		Subject:   username,
-		ExpiresAt: jwt.NewNumericDate(expirationTime),
+	claims := &CustomClaims{
+		UserID:   userId,
+		Username: username,
+		Email:    email,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
 	}
 
-	// Create token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	// Sign token
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
 		return "", err
@@ -30,20 +37,18 @@ func GenerateJWT(Id uint, username string, email string) (string, error) {
 	return tokenString, nil
 }
 
-func ParseToken(tokenString string) (*jwt.Token, *jwt.RegisteredClaims, error) {
-	claims := &jwt.RegisteredClaims{}
+func ParseJWT(tokenString string) (*jwt.Token, *CustomClaims, error) {
+	claims := &CustomClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
 		return jwtKey, nil
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok && token.Valid {
+
+	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
 		return token, claims, nil
 	} else {
-		return nil, nil, errors.New("invalid token")
+		return nil, nil, fmt.Errorf("invalid token")
 	}
 }

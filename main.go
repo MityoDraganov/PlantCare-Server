@@ -51,6 +51,7 @@ func main() {
 	protectedRoutes.HandleFunc("/users/{username}", controllers.DeleteUser).Methods("DELETE")
 
 	// Crop Pot routes
+	protectedRoutes.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
 	protectedRoutes.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
 	protectedRoutes.HandleFunc("/cropPots/{id}", controllers.UpdateCropPot).Methods("PUT")
 
