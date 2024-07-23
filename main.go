@@ -14,7 +14,7 @@ import (
 )
 
 func InitDB() *gorm.DB {
-	dsn := "sqlserver://server:server123@localhost:1433?database=Plant_Care"
+	dsn := "sqlserver://server:P@ssw0rd123!@localhost:1433?database=Plant_Care"
 	db, err := gorm.Open(sqlserver.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database:", err)
