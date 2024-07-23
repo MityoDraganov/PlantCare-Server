@@ -9,7 +9,12 @@ require (
 	gorm.io/gorm v1.25.11
 )
 
-require github.com/golang-jwt/jwt/v4 v4.5.0
+require (
+	github.com/clerk/clerk-sdk-go/v2 v2.0.4
+	github.com/golang-jwt/jwt/v4 v4.5.0
+)
+
+require github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
@@ -21,7 +26,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/microsoft/go-mssqldb v1.7.2 // indirect
-	golang.org/x/crypto v0.25.0
+	golang.org/x/crypto v0.25.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
 	golang.org/x/sys v0.22.0 // indirect
 	golang.org/x/text v0.16.0 // indirect

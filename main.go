@@ -2,15 +2,22 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 
+	"github.com/gorilla/mux"
+
 	"PlantCare/controllers"
-	"PlantCare/middlewares"
+
+
 	"PlantCare/models"
+
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
+
+
+	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
+
 )
 
 func InitDB() *gorm.DB {
@@ -35,27 +42,22 @@ func main() {
 
 	fmt.Println("Pinged your deployment. You successfully connected to SQL Server!")
 
-	// Public routes
-	publicRoutes := r.PathPrefix("/auth").Subrouter()
-	publicRoutes.HandleFunc("/register", controllers.CreateUser).Methods("POST")
-	publicRoutes.HandleFunc("/login", controllers.LoginUser).Methods("POST")
+
 
 	// Apply middleware to all other routes
-	protectedRoutes := r.PathPrefix("/").Subrouter()
-	protectedRoutes.Use(middlewares.TokenMiddleware)
+	protectedRoutes := r.PathPrefix("/api/v1").Subrouter()
 
-	// User routes
-	protectedRoutes.HandleFunc("/users", controllers.GetUsers).Methods("GET")
-	protectedRoutes.HandleFunc("/users/{username}", controllers.GetUser).Methods("GET")
-	protectedRoutes.HandleFunc("/users/{username}", controllers.UpdateUser).Methods("PUT")
-	protectedRoutes.HandleFunc("/users/{username}", controllers.DeleteUser).Methods("DELETE")
+	authMiddleware := clerkhttp.WithHeaderAuthorization()
+	protectedRoutes.Use(authMiddleware)
 
 	// Crop Pot routes
 	protectedRoutes.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
-	protectedRoutes.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
+	protectedRoutes.HandleFunc("/cropPots/{token}", controllers.AssignCropPotToUser).Methods("POST")
 	protectedRoutes.HandleFunc("/cropPots/{id}", controllers.UpdateCropPot).Methods("PUT")
 	protectedRoutes.HandleFunc("/cropPots/{id}", controllers.RemoveCropPot).Methods("DELETE")
-
+	
+	//ADMIN ACTIONS
+	r.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
 
 	log.Fatal(http.ListenAndServe(":8080", r))
 	fmt.Println("Server listening on port 8080 !")

@@ -5,10 +5,11 @@ import (
 	"net/http"
 
 	"PlantCare/dtos"
-	"PlantCare/middlewares"
-	"PlantCare/models"
 	"PlantCare/utils"
 
+	"PlantCare/models"
+
+	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/gorilla/mux"
 	"gorm.io/gorm/clause"
 )
@@ -17,15 +18,16 @@ import (
 
 func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 	var cropPots []dtos.CropPotResponse
-	claims, ok := r.Context().Value(middlewares.ClaimsKey).(*utils.CustomClaims)
-
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "unauthorized"}`))
 		return
 	}
 
+
 	//db.Where("user_id = ?", claims.UserID).Find(&cropPots)
-	db.Model(&models.CropPot{}).Where("user_id = ?", claims.UserID).
+	db.Model(&models.CropPot{}).Where("user_id = ?", claims.ID).
 		Select("id, alias, watering_interval, last_watered_at, is_archived").
 		Find(&cropPots)
 
@@ -33,45 +35,36 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(cropPots)
 }
 
-func AddCropPot(w http.ResponseWriter, r *http.Request) {
+func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "unauthorized"}`))
+		return
+	}
 
-	claims, ok := r.Context().Value(middlewares.ClaimsKey).(*utils.CustomClaims)
-	println("userID")
-	println(claims.UserID)
 
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	var cropPotDto dtos.CreateCropPot
-	err := json.NewDecoder(r.Body).Decode(&cropPotDto)
+	cropPotDBObject, err := findCropPotById(params["id"])
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	err = validate.Struct(cropPotDto)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	cropPotDBObject.ClerkUserID = &claims.ID
 
-	cropPot := models.CropPot{
-		Alias:            cropPotDto.Alias,
-		WateringInterval: cropPotDto.WateringInterval,
-		UserID:           claims.UserID,
-	}
-
-	cropPotDBObject := db.Create(&cropPot)
-	if cropPotDBObject.Error != nil {
-		http.Error(w, cropPotDBObject.Error.Error(), http.StatusInternalServerError)
-		return
-	}
-
+	db.Save(cropPotDBObject)
+	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(cropPot)
+	json.NewEncoder(w).Encode(cropPotDBObject)
 }
+
+
 
 func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 	var cropPotDto dtos.CreateCropPot
@@ -125,4 +118,35 @@ func findCropPotById(id string) (*models.CropPot, error) {
 		return nil, result.Error
 	}
 	return &cropPot, nil
+}
+
+//admin action
+func AddCropPot(w http.ResponseWriter, r *http.Request) {
+
+	//claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	// if !ok {
+	// 	w.WriteHeader(http.StatusUnauthorized)
+	// 	w.Write([]byte(`{"error": "unauthorized"}`))
+	// 	return
+	// }
+
+	token, err := utils.GenerateSecureToken(32)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	cropPot := models.CropPot{
+		Token: token,
+	}
+
+	cropPotDBObject := db.Create(&cropPot)
+	if cropPotDBObject.Error != nil {
+		http.Error(w, cropPotDBObject.Error.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cropPot)
 }
