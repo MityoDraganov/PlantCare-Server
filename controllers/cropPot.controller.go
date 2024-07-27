@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"PlantCare/dtos"
@@ -11,10 +12,33 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/gorilla/mux"
+
 	"gorm.io/gorm/clause"
 )
 
 //cropPotDBObject
+
+type CustomClaims struct {
+	UserID         string `json:"user_id"`
+	ExternalID     string `json:"external_id"`
+	FirstName      string `json:"first_name"`
+	LastName       string `json:"last_name"`
+	FullName       string `json:"full_name"`
+	Username       string `json:"username"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+	PrimaryEmail   string `json:"primary_email_address"`
+	PrimaryPhone   string `json:"primary_phone_number"`
+	PrimaryWeb3    string `json:"primary_web3_wallet"`
+	EmailVerified  bool   `json:"email_verified"`
+	PhoneVerified  bool   `json:"phone_number_verified"`
+	ImageURL       string `json:"image_url"`
+	HasImage       bool   `json:"has_image"`
+	TwoFactor      bool   `json:"two_factor_enabled"`
+	PublicMetadata string `json:"public_metadata"`
+	UnsafeMetadata string `json:"unsafe_metadata"`
+	SessionActor   string `json:"session_actor"`
+}
 
 func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 	var cropPots []dtos.CropPotResponse
@@ -24,7 +48,6 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"error": "unauthorized"}`))
 		return
 	}
-
 
 	//db.Where("user_id = ?", claims.UserID).Find(&cropPots)
 	db.Model(&models.CropPot{}).Where("user_id = ?", claims.ID).
@@ -36,35 +59,40 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error": "unauthorized"}`))
+		fmt.Println("Error extracting session claims:")
+		http.Error(w, "Unauthorized: unable to extract session claims", http.StatusUnauthorized)
 		return
 	}
 
+	params := mux.Vars(r)
 
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	cropPotDBObject, err := findCropPotById(params["id"])
+	cropPotDBObject, err := findPotByToken(params["token"])
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	cropPotDBObject.ClerkUserID = &claims.ID
+	if cropPotDBObject.ClerkUserID != nil {
+		http.Error(w, "Crop pot already assigned! Contact support for more information.", http.StatusUnauthorized)
+		return
+	}
 
-	db.Save(cropPotDBObject)
-	
+	clerkUserID := claims.Subject
+	cropPotDBObject.ClerkUserID = &clerkUserID
+
+	result := db.Save(cropPotDBObject)
+	if result.Error != nil {
+		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Println("CropPot after update:", cropPotDBObject)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cropPotDBObject)
 }
-
-
 
 func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 	var cropPotDto dtos.CreateCropPot
@@ -111,16 +139,7 @@ func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"result": "success"})
 }
 
-func findCropPotById(id string) (*models.CropPot, error) {
-	var cropPot models.CropPot
-	result := db.First(&cropPot, "id = ?", id)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-	return &cropPot, nil
-}
-
-//admin action
+// admin action
 func AddCropPot(w http.ResponseWriter, r *http.Request) {
 
 	//claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -149,4 +168,21 @@ func AddCropPot(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cropPot)
+}
+
+func findCropPotById(id string) (*models.CropPot, error) {
+	var cropPot models.CropPot
+	result := db.First(&cropPot, "id = ?", id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &cropPot, nil
+}
+
+func findPotByToken(token string) (*models.CropPot, error) {
+	var cropPot models.CropPot
+	if err := db.Where("token = ?", token).First(&cropPot).Error; err != nil {
+		return nil, err
+	}
+	return &cropPot, nil
 }

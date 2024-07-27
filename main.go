@@ -6,18 +6,16 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 
 	"PlantCare/controllers"
-
-
 	"PlantCare/models"
 
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
 
-
+	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
-
 )
 
 func InitDB() *gorm.DB {
@@ -30,11 +28,19 @@ func InitDB() *gorm.DB {
 }
 
 func main() {
+	// Initialize the router
 	r := mux.NewRouter()
 
+	// Apply the path prefix
+	api := r.PathPrefix("/api/v1").Subrouter()
+
+	clerk.SetKey("sk_test_gy7eUfUIotA7K6RXGOa0VJBUclqUhHRSmOI6zqriDU")
+
+	// Initialize the database
 	db := InitDB()
 	controllers.SetDatabase(db)
 
+	// Auto migrate the database models
 	err := db.AutoMigrate(&models.User{}, &models.CropPot{})
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
@@ -44,21 +50,36 @@ func main() {
 
 
 
-	// Apply middleware to all other routes
-	protectedRoutes := r.PathPrefix("/api/v1").Subrouter()
-
 	authMiddleware := clerkhttp.WithHeaderAuthorization()
-	protectedRoutes.Use(authMiddleware)
+	api.Use(authMiddleware)
+
+	//	--PUBLIC ROUTES
+
+	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister)
+
+
+	//	--PROTECTED ROUTES--
 
 	// Crop Pot routes
-	protectedRoutes.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
-	protectedRoutes.HandleFunc("/cropPots/{token}", controllers.AssignCropPotToUser).Methods("POST")
-	protectedRoutes.HandleFunc("/cropPots/{id}", controllers.UpdateCropPot).Methods("PUT")
-	protectedRoutes.HandleFunc("/cropPots/{id}", controllers.RemoveCropPot).Methods("DELETE")
-	
-	//ADMIN ACTIONS
+	api.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
+	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
+	api.HandleFunc("/cropPots/{id}", controllers.UpdateCropPot).Methods("PUT")
+	api.HandleFunc("/cropPots/{id}", controllers.RemoveCropPot).Methods("DELETE")
+
+	// ADMIN ACTIONS
 	r.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
 
-	log.Fatal(http.ListenAndServe(":8080", r))
-	fmt.Println("Server listening on port 8080 !")
-}
+	// CORS configuration
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:5173"}, // Allow your frontend origin
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
+		AllowedHeaders:   []string{"Authorization", "Content-Type"},
+		AllowCredentials: true,
+	})
+
+	handler := c.Handler(r)
+
+	// Start the server
+	log.Fatal(http.ListenAndServe(":8080", handler))
+	fmt.Println("Server listening on port 8080!")
+}	
