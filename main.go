@@ -10,6 +10,7 @@ import (
 
 	"PlantCare/controllers"
 	"PlantCare/models"
+	"PlantCare/websocket"
 
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
@@ -26,6 +27,7 @@ func InitDB() *gorm.DB {
 	}
 	return db
 }
+
 
 func main() {
 	// Initialize the router
@@ -48,30 +50,27 @@ func main() {
 
 	fmt.Println("Pinged your deployment. You successfully connected to SQL Server!")
 
-
-
 	authMiddleware := clerkhttp.WithHeaderAuthorization()
 	api.Use(authMiddleware)
 
-	//	--PUBLIC ROUTES
-
+	// PUBLIC ROUTES
 	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister)
 
-
-	//	--PROTECTED ROUTES--
-
-	// Crop Pot routes
+	// PROTECTED ROUTES
 	api.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
 	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
 	api.HandleFunc("/cropPots/{id}", controllers.UpdateCropPot).Methods("PUT")
 	api.HandleFunc("/cropPots/{id}", controllers.RemoveCropPot).Methods("DELETE")
+
+	// WEBSOCKET CONNECTIONS
+	websocket.SetupWebSocketRoutes(r)
 
 	// ADMIN ACTIONS
 	r.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
 
 	// CORS configuration
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173"}, // Allow your frontend origin
+		AllowedOrigins:   []string{"http://localhost:5173"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -82,4 +81,4 @@ func main() {
 	// Start the server
 	log.Fatal(http.ListenAndServe(":8080", handler))
 	fmt.Println("Server listening on port 8080!")
-}	
+}
