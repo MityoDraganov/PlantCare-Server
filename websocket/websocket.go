@@ -32,7 +32,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go handleMessages(connection)
-	go sendMessages(connection)
+	go SendMessages(connection)
 }
 
 // handleMessages handles incoming messages from the client
@@ -59,7 +59,7 @@ func handleMessages(connection *Connection) {
 }
 
 // sendMessages sends messages to the client
-func sendMessages(connection *Connection) {
+func SendMessages(connection *Connection) {
 	for msg := range connection.Send {
 		err := connection.Conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
