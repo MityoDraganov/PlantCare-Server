@@ -61,21 +61,20 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
 	if !ok {
-		fmt.Println("Error extracting session claims:")
-		http.Error(w, "Unauthorized: unable to extract session claims", http.StatusUnauthorized)
+		fmt.Println("Error extracting session claims")
+		utils.JsonError(w, "Unauthorized: unable to extract session claims", http.StatusUnauthorized)
 		return
 	}
-
 	params := mux.Vars(r)
 
 	cropPotDBObject, err := findPotByToken(params["token"])
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if cropPotDBObject.ClerkUserID != nil {
-		http.Error(w, "Crop pot already assigned! Contact support for more information.", http.StatusUnauthorized)
+		utils.JsonError(w, "Crop pot already assigned! Contact support for more information.", http.StatusUnauthorized)
 		return
 	}
 
@@ -84,7 +83,7 @@ func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 
 	result := db.Save(cropPotDBObject)
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -98,7 +97,7 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 	var cropPotDto dtos.CreateCropPot
 	err := json.NewDecoder(r.Body).Decode(&cropPotDto)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.JsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -107,7 +106,7 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 
 	cropPotDBObject, err := findCropPotById(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -123,7 +122,7 @@ func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 
 	cropPotDBObject, err := findCropPotById(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	cropPotDBObject.IsArchived = true
@@ -131,7 +130,7 @@ func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 	// Save the updated object back to the database
 	result := db.Save(&cropPotDBObject)
 	if result.Error != nil {
-		http.Error(w, result.Error.Error(), http.StatusInternalServerError)
+		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -141,18 +140,10 @@ func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 
 // admin action
 func AddCropPot(w http.ResponseWriter, r *http.Request) {
-
-	//claims, ok := clerk.SessionClaimsFromContext(r.Context())
-	// if !ok {
-	// 	w.WriteHeader(http.StatusUnauthorized)
-	// 	w.Write([]byte(`{"error": "unauthorized"}`))
-	// 	return
-	// }
-
 	token, err := utils.GenerateSecureToken(32)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.JsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -162,7 +153,7 @@ func AddCropPot(w http.ResponseWriter, r *http.Request) {
 
 	cropPotDBObject := db.Create(&cropPot)
 	if cropPotDBObject.Error != nil {
-		http.Error(w, cropPotDBObject.Error.Error(), http.StatusInternalServerError)
+		utils.JsonError(w, cropPotDBObject.Error.Error(), http.StatusInternalServerError)
 		return
 	}
 
