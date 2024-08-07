@@ -5,42 +5,47 @@ import (
 	"PlantCare/models"
 	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
-  
+	wsutils "PlantCare/websocket/wsUtils"
+	"net/http"
 
 	"encoding/json"
 	"fmt"
+
+	"gorm.io/gorm/clause"
 )
 
-type Handler struct{
-}
 
 func (h *Handler) HandleUpdateSensorData(data json.RawMessage, connection *wstypes.Connection) {
-    var sensorData wsDtos.SensorDataDto
+    var sensorDataDto wsDtos.SensorDataDto
     cropPotID, ok := connection.Context.Value(wstypes.CropPotIDKey).(uint)
     if !ok {
         response, _ := json.Marshal("Error")
 		connection.Send <- response
 		return
 	}
-    err := json.Unmarshal(data, &sensorData)
+    err := json.Unmarshal(data, &sensorDataDto)
     if err != nil {
         fmt.Println("Error while unmarshaling sensor data:", err)
         return
     }
 
-    fmt.Printf("Handling sensor data: %+v\n", sensorData)
+    fmt.Printf("Handling sensor data: %+v\n", sensorDataDto)
 
-    sensorDataDbObject := models.SensorData{
-        Temperature: sensorData.Temperature,
-        Moisture: sensorData.Moisture,    
-        WaterLevel: sensorData.WaterLevel,
-        SunExposure: sensorData.SunExposure,
+    sensorData := models.SensorData{
+        Temperature: sensorDataDto.Temperature,
+        Moisture: sensorDataDto.Moisture,    
+        WaterLevel: sensorDataDto.WaterLevel,
+        SunExposure: sensorDataDto.SunExposure,
 
         CropPotID: cropPotID,
     }
     
-    initPackage.Db.Create(sensorDataDbObject)
+    sensorDataDbObject := initPackage.Db.Create(&sensorData).Clauses(clause.Returning{})
 
-    response, _ := json.Marshal("Sensor data updated!")
-	connection.Send <- response
+    if sensorDataDbObject.Error != nil {
+       wsutils.SendErrorResponse(connection, http.StatusNotFound)
+    }
+
+    fmt.Println(sensorDataDbObject)
+    wsutils.SendValidResponse(connection, sensorDataDbObject)
 }

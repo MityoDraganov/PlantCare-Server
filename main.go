@@ -44,7 +44,7 @@ func main() {
 	initPackage.SetDatabase(db)
 
 	// Auto migrate the database models
-	err := db.AutoMigrate(&models.User{}, &models.CropPot{})
+	err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.SensorData{})
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}

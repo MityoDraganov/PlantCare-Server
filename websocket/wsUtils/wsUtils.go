@@ -1,68 +1,51 @@
 package wsutils
 
 import (
-	"PlantCare/websocket/eventHandlers"
 	"PlantCare/websocket/wsTypes"
 	"encoding/json"
 	"fmt"
-	"reflect"
-
 	"github.com/gorilla/websocket"
 )
 
-// Read messages from the WebSocket connection
-func HandleMessages(connection *wstypes.Connection) {
-	defer connection.Conn.Close()
 
-	for {
-		_, msg, err := connection.Conn.ReadMessage()
-		if err != nil {
-			fmt.Println("Error while reading message:", err)
-			break
-		}
 
-		// Process the received message
-		ProcessMessage(msg, connection)
-	}
-}
-
-// Process the received message
-func ProcessMessage(msg []byte, connection *wstypes.Connection) {
-	var message wstypes.Message
-	err := json.Unmarshal(msg, &message)
+func sendResponse(connection *wstypes.Connection, response wstypes.WsResponse) {
+	responseBytes, err := json.Marshal(response)
 	if err != nil {
-		fmt.Println("Error while unmarshaling message:", err)
+		fmt.Println("Error marshalling response:", err)
 		return
 	}
 
-	fmt.Printf("Received message with event: %+v\n", message.Event)
-
-	handler := &eventHandlers.Handler{
+	select {
+	case connection.Send <- responseBytes:
+		// Message successfully queued for sending
+	default:
+		// Handle the case where sending is blocked or the channel is full
+		fmt.Println("Error: Unable to send response, channel may be blocked.")
 	}
-
-	handlerValue := reflect.ValueOf(handler)
-	method := handlerValue.MethodByName(message.Event)
-
-	if method.IsValid() && method.Type().NumIn() == 2 {
-		// Pass raw message data as is
-		data := json.RawMessage(message.Data)
-
-		if method.Type().In(0) == reflect.TypeOf(data) && method.Type().In(1) == reflect.TypeOf(connection) {
-			args := []reflect.Value{reflect.ValueOf(data), reflect.ValueOf(connection)}
-			method.Call(args)
-		} else {
-			fmt.Println("Handler signature mismatch for event:", message.Event)
-		}
-	} else {
-		fmt.Println("Unknown event:", message.Event)
-	}
-
-	// Echo back the message as an example
-	response, _ := json.Marshal(message)
-	connection.Send <- response
 }
 
+// SendOkResponse creates and sends a response with Ok = true.
+func SendValidResponse(connection *wstypes.Connection, data interface{}) {
+	response := wstypes.WsResponse{
+		Ok:   true,
+		Status: 200,
+		Data: toJSON(data),
+	}
 
+	sendResponse(connection, response)
+}
+
+// SendErrorResponse creates and sends a response with Ok = false and an optional status message.
+func SendErrorResponse(connection *wstypes.Connection, status int) {
+	response := wstypes.WsResponse{
+		Ok:     false,
+		Status: status,
+		Data:   nil, // No data in error response
+	}
+
+	sendResponse(connection, response)
+}
 
 func SendMessages(connection *wstypes.Connection) {
 	for msg := range connection.Send {
@@ -72,4 +55,16 @@ func SendMessages(connection *wstypes.Connection) {
 			break
 		}
 	}
+}
+
+func toJSON(data interface{}) json.RawMessage {
+	if data == nil {
+		return nil
+	}
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshalling data:", err)
+		return nil
+	}
+	return dataBytes
 }

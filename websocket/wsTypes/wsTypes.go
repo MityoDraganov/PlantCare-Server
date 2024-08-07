@@ -20,10 +20,12 @@ type Message struct {
 
 type WsResponse struct {
 	Ok bool
-	Status *string
-	Data json.RawMessage
+	Status int
+	Data interface{}
 }
 type SendMessagesFunc func(connection *Connection)
 
 type ContextKey string
 const CropPotIDKey ContextKey = "cropPotID"
+
+

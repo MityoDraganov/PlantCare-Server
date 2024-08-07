@@ -40,7 +40,7 @@ func HandleConnection(w http.ResponseWriter, r *http.Request) {
 		Context: r.Context(),
 	}
 
-	go wsutils.HandleMessages(connection)
+	go HandleMessages(connection)
 	go wsutils.SendMessages(connection)
 }
 

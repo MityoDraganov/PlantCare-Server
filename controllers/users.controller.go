@@ -3,6 +3,7 @@ package controllers
 import (
 	"PlantCare/dtos"
 	"PlantCare/initPackage"
+	"PlantCare/utils"
 
 	"PlantCare/models"
 	"encoding/json"
@@ -14,7 +15,7 @@ func ClerkUserRegister(w http.ResponseWriter, r *http.Request) {
     var clerkResponse dtos.ClerkCreateUserDto
     err := json.NewDecoder(r.Body).Decode(&clerkResponse)
     if err != nil {
-        http.Error(w, err.Error(), http.StatusBadRequest)
+        utils.JsonError(w, err.Error(), http.StatusBadRequest)
         return
     }
 
@@ -31,8 +32,6 @@ func ClerkUserRegister(w http.ResponseWriter, r *http.Request) {
     userDbObject := initPackage.Db.Create(&user)
 
     if userDbObject.Error != nil {
-        fmt.Println(userDbObject.Error.Error())
+        utils.JsonError(w, userDbObject.Error.Error(), http.StatusInternalServerError)
     }
-
-    fmt.Println(&userDbObject)
 }
