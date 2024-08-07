@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"PlantCare/dtos"
+	"PlantCare/initPackage"
 	"PlantCare/utils"
 
 	"PlantCare/models"
@@ -15,8 +16,6 @@ import (
 
 	"gorm.io/gorm/clause"
 )
-
-//cropPotDBObject
 
 type CustomClaims struct {
 	UserID         string `json:"user_id"`
@@ -50,7 +49,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//db.Where("user_id = ?", claims.UserID).Find(&cropPots)
-	db.Model(&models.CropPot{}).Where("user_id = ?", claims.ID).
+	initPackage.Db.Model(&models.CropPot{}).Where("user_id = ?", claims.ID).
 		Select("id, alias, watering_interval, last_watered_at, is_archived").
 		Find(&cropPots)
 
@@ -67,7 +66,7 @@ func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 	}
 	params := mux.Vars(r)
 
-	cropPotDBObject, err := findPotByToken(params["token"])
+	cropPotDBObject, err := FindPotByToken(params["token"])
 	if err != nil {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -81,7 +80,7 @@ func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 	clerkUserID := claims.Subject
 	cropPotDBObject.ClerkUserID = &clerkUserID
 
-	result := db.Save(cropPotDBObject)
+	result := initPackage.Db.Save(cropPotDBObject)
 	if result.Error != nil {
 		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
 		return
@@ -110,7 +109,7 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.Model(&cropPotDBObject).Clauses(clause.Returning{}).Updates(cropPotDto)
+	initPackage.Db.Model(&cropPotDBObject).Clauses(clause.Returning{}).Updates(cropPotDto)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cropPotDBObject)
@@ -128,7 +127,7 @@ func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 	cropPotDBObject.IsArchived = true
 
 	// Save the updated object back to the database
-	result := db.Save(&cropPotDBObject)
+	result := initPackage.Db.Save(&cropPotDBObject)
 	if result.Error != nil {
 		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
 		return
@@ -151,7 +150,7 @@ func AddCropPot(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 	}
 
-	cropPotDBObject := db.Create(&cropPot)
+	cropPotDBObject := initPackage.Db.Create(&cropPot)
 	if cropPotDBObject.Error != nil {
 		utils.JsonError(w, cropPotDBObject.Error.Error(), http.StatusInternalServerError)
 		return
@@ -163,16 +162,16 @@ func AddCropPot(w http.ResponseWriter, r *http.Request) {
 
 func findCropPotById(id string) (*models.CropPot, error) {
 	var cropPot models.CropPot
-	result := db.First(&cropPot, "id = ?", id)
+	result := initPackage.Db.First(&cropPot, "id = ?", id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
 	return &cropPot, nil
 }
 
-func findPotByToken(token string) (*models.CropPot, error) {
+func FindPotByToken(token string) (*models.CropPot, error) {
 	var cropPot models.CropPot
-	if err := db.Where("token = ?", token).First(&cropPot).Error; err != nil {
+	if err := initPackage.Db.Where("token = ?", token).First(&cropPot).Error; err != nil {
 		return nil, err
 	}
 	return &cropPot, nil

@@ -15,4 +15,6 @@ type CropPot struct {
     IsArchived       bool       `json:"isArchived"`
     ClerkUserID      *string    `json:"clerkUserId"`
     User            User       `gorm:"foreignKey:ClerkUserID;references:ClerkID"`
+
+    SensorData []SensorData `gorm:"foreignKey:CropPotID"`
 }

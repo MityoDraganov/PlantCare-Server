@@ -1,11 +1,13 @@
 package controllers
 
 import (
-    "PlantCare/dtos"
-    "PlantCare/models"
-    "encoding/json"
-    "fmt"
-    "net/http"
+	"PlantCare/dtos"
+	"PlantCare/initPackage"
+
+	"PlantCare/models"
+	"encoding/json"
+	"fmt"
+	"net/http"
 )
 
 func ClerkUserRegister(w http.ResponseWriter, r *http.Request) {
@@ -26,7 +28,7 @@ func ClerkUserRegister(w http.ResponseWriter, r *http.Request) {
         ClerkID: clerkResponse.Data.ID,
         IsAdmin_: false,
     }
-    userDbObject := db.Create(&user)
+    userDbObject := initPackage.Db.Create(&user)
 
     if userDbObject.Error != nil {
         fmt.Println(userDbObject.Error.Error())

@@ -1,16 +1,24 @@
 package websocket
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+
+	"PlantCare/controllers"
+	"PlantCare/utils"
+	"PlantCare/websocket/wsTypes"
+	"PlantCare/websocket/wsUtils"
 
 	"github.com/gorilla/mux"
 )
 
-// MiddlewareFunc represents a WebSocket middleware function
+// MiddlewareFunc defines a function type for middleware.
 type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
 
-// ApplyMiddleware applies middleware to the WebSocket handler
+
+
+// ApplyMiddleware applies a series of middleware functions to an HTTP handler function.
 func ApplyMiddleware(h http.HandlerFunc, middlewares ...MiddlewareFunc) http.HandlerFunc {
 	for _, m := range middlewares {
 		h = m(h)
@@ -18,7 +26,26 @@ func ApplyMiddleware(h http.HandlerFunc, middlewares ...MiddlewareFunc) http.Han
 	return h
 }
 
-// Example middleware that logs WebSocket connections
+
+func HandleConnection(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		fmt.Println("Error while upgrading connection:", err)
+		return
+	}
+
+	connection := &wstypes.Connection{
+		Conn: conn,
+		Send: make(chan []byte),
+		Context: r.Context(),
+	}
+
+	go wsutils.HandleMessages(connection)
+	go wsutils.SendMessages(connection)
+}
+
+
+// LoggingMiddleware logs basic information about the HTTP request.
 func LoggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("New WebSocket connection")
@@ -26,8 +53,34 @@ func LoggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// Use ApplyMiddleware when setting up the route
+
+// TokenLoggingMiddleware extracts and prints the ?token query parameter from the request.
+func AuthMiddlewear(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Extract the token from the query parameters.
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			http.Error(w, "Unauthorized: No token provided", http.StatusUnauthorized)
+			return
+		}
+
+
+		cropPotDbObject, err := controllers.FindPotByToken(token)
+
+		if err != nil {
+			utils.JsonError(w, err.Error(), http.StatusUnauthorized)
+		}
+
+		ctx := context.WithValue(r.Context(), wstypes.CropPotIDKey, cropPotDbObject.ID)
+
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(w, r)
+	}
+}
+
+// SetupWebSocketRoutes sets up the WebSocket routes with the provided middleware.
 func SetupWebSocketRoutes(r *mux.Router) {
-	ws := r.PathPrefix("/ws/v1").Subrouter()
-	ws.HandleFunc("/connect", ApplyMiddleware(HandleConnection, LoggingMiddleware))
+	ws := r.PathPrefix("/v1").Subrouter()
+	ws.HandleFunc("/", ApplyMiddleware(HandleConnection, LoggingMiddleware, AuthMiddlewear))
 }

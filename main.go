@@ -9,6 +9,7 @@ import (
 	"github.com/rs/cors"
 
 	"PlantCare/controllers"
+	"PlantCare/initPackage"
 	"PlantCare/models"
 	"PlantCare/websocket"
 
@@ -40,7 +41,7 @@ func main() {
 
 	// Initialize the database
 	db := InitDB()
-	controllers.SetDatabase(db)
+	initPackage.SetDatabase(db)
 
 	// Auto migrate the database models
 	err := db.AutoMigrate(&models.User{}, &models.CropPot{})

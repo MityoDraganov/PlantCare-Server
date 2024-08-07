@@ -1,14 +1,14 @@
-package controllers
+package initPackage
 
 import (
 	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
 
-var db *gorm.DB
+var Db *gorm.DB
 var validate *validator.Validate
 
 func SetDatabase(database *gorm.DB) {
-	db = database
+	Db = database
 	validate = validator.New()
 }
