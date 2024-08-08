@@ -15,9 +15,9 @@ import (
 )
 
 
-func (h *Handler) HandleUpdateSensorData(data json.RawMessage, connection *wstypes.Connection) {
+func (h *Handler) HandleUpdateSensorData(data json.RawMessage, connection *wsTypes.Connection) {
     var sensorDataDto wsDtos.SensorDataDto
-    cropPotID, ok := connection.Context.Value(wstypes.CropPotIDKey).(uint)
+    cropPotID, ok := connection.Context.Value(wsTypes.CropPotIDKey).(uint)
     if !ok {
         response, _ := json.Marshal("Error")
 		connection.Send <- response
@@ -47,5 +47,5 @@ func (h *Handler) HandleUpdateSensorData(data json.RawMessage, connection *wstyp
     }
 
     fmt.Println(sensorDataDbObject)
-    wsutils.SendValidResponse(connection, sensorDataDbObject)
+    wsutils.SendValidResponse(connection, nil)
 }

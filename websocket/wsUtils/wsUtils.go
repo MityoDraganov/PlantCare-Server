@@ -9,7 +9,7 @@ import (
 
 
 
-func sendResponse(connection *wstypes.Connection, response wstypes.WsResponse) {
+func sendResponse(connection *wsTypes.Connection, response wsTypes.WsResponse) {
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		fmt.Println("Error marshalling response:", err)
@@ -26,8 +26,8 @@ func sendResponse(connection *wstypes.Connection, response wstypes.WsResponse) {
 }
 
 // SendOkResponse creates and sends a response with Ok = true.
-func SendValidResponse(connection *wstypes.Connection, data interface{}) {
-	response := wstypes.WsResponse{
+func SendValidResponse(connection *wsTypes.Connection, data interface{}) {
+	response := wsTypes.WsResponse{
 		Ok:   true,
 		Status: 200,
 		Data: toJSON(data),
@@ -37,8 +37,8 @@ func SendValidResponse(connection *wstypes.Connection, data interface{}) {
 }
 
 // SendErrorResponse creates and sends a response with Ok = false and an optional status message.
-func SendErrorResponse(connection *wstypes.Connection, status int) {
-	response := wstypes.WsResponse{
+func SendErrorResponse(connection *wsTypes.Connection, status int) {
+	response := wsTypes.WsResponse{
 		Ok:     false,
 		Status: status,
 		Data:   nil, // No data in error response
@@ -47,7 +47,7 @@ func SendErrorResponse(connection *wstypes.Connection, status int) {
 	sendResponse(connection, response)
 }
 
-func SendMessages(connection *wstypes.Connection) {
+func SendMessages(connection *wsTypes.Connection) {
 	for msg := range connection.Send {
 		err := connection.Conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {

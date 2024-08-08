@@ -1,4 +1,4 @@
-package wstypes
+package wsTypes
 
 import (
 	"context"

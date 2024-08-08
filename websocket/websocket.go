@@ -10,19 +10,11 @@ import (
 
 	"PlantCare/websocket/wsUtils"
 
-	"github.com/gorilla/websocket"
 )
-
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
 
 
 // Read messages from the WebSocket connection
-func HandleMessages(connection *wstypes.Connection) {
+func HandleMessages(connection *wsTypes.Connection) {
 	defer connection.Conn.Close()
 
 	for {
@@ -38,8 +30,8 @@ func HandleMessages(connection *wstypes.Connection) {
 }
 
 // Process the received message
-func ProcessMessage(msg []byte, connection *wstypes.Connection) {
-	var message wstypes.Message
+func ProcessMessage(msg []byte, connection *wsTypes.Connection) {
+	var message wsTypes.Message
 	err := json.Unmarshal(msg, &message)
 	if err != nil {
 		fmt.Println("Error while unmarshaling message:", err)
