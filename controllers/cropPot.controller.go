@@ -14,7 +14,7 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/gorilla/mux"
 
-	"gorm.io/gorm/clause"
+
 )
 
 type CustomClaims struct {
@@ -103,17 +103,54 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
 
+	// Find existing CropPot by ID
 	cropPotDBObject, err := findCropPotById(id)
 	if err != nil {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	initPackage.Db.Model(&cropPotDBObject).Clauses(clause.Returning{}).Updates(cropPotDto)
+	// Check if the ControlSettings needs to be updated or created
+	if cropPotDto.ControlSettings != nil {
+		var controlSettings models.ControlSettings
+
+		if cropPotDBObject.ControlSettingsID != nil {
+			// Update existing ControlSettings
+			if err := initPackage.Db.First(&controlSettings, *cropPotDBObject.ControlSettingsID).Error; err != nil {
+				utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Update the ControlSettings
+			initPackage.Db.Model(&controlSettings).Updates(cropPotDto.ControlSettings)
+		} else {
+			// Create new ControlSettings
+			controlSettings = models.ControlSettings{
+				WateringInterval: cropPotDto.ControlSettings.WateringInterval,
+				LastWateredAt:    cropPotDto.ControlSettings.LastWateredAt,
+				CropPotID:        cropPotDBObject.ID,
+			}
+
+			if err := initPackage.Db.Create(&controlSettings).Error; err != nil {
+				utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			// Update CropPot with the new ControlSettingsID
+			cropPotDBObject.ControlSettingsID = &controlSettings.ID
+		}
+	}
+
+	// Update the CropPot
+	if err := initPackage.Db.Model(&cropPotDBObject).Updates(cropPotDto).Error; err != nil {
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cropPotDBObject)
 }
+
 
 func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
