@@ -57,6 +57,27 @@ func SendMessages(connection *wsTypes.Connection) {
 	}
 }
 
+func SendValidRequest(connection *wsTypes.Connection, data interface{}){
+	response := wsTypes.WsResponse{
+		Ok:     true,
+		Status: 200,
+		Data:   toJSON(data),
+	}
+
+	responseBytes, err := json.Marshal(response)
+	if err != nil {
+		fmt.Println("Error marshalling response:", err)
+		return
+	}
+
+	// Send the response to the WebSocket client
+	err = connection.Conn.WriteMessage(websocket.TextMessage, responseBytes)
+	if err != nil {
+		fmt.Println("Error while sending message:", err)
+		return
+	}
+}
+
 func toJSON(data interface{}) json.RawMessage {
 	if data == nil {
 		return nil

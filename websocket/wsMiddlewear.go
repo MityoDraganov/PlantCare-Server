@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -15,8 +16,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// MiddlewareFunc defines a function type for middleware.
-type MiddlewareFunc func(http.HandlerFunc) http.HandlerFunc
 var (
 	upgrader = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
@@ -26,17 +25,28 @@ var (
 	connManager = connectionManager.NewConnectionManager() // Initialize the connection manager
 )
 
-
-// ApplyMiddleware applies a series of middleware functions to an HTTP handler function.
-func ApplyMiddleware(h http.HandlerFunc, middlewares ...MiddlewareFunc) http.HandlerFunc {
-	for _, m := range middlewares {
-		h = m(h)
+// Middleware handles authentication, connection, and logging in a single function.
+func Middleware(w http.ResponseWriter, r *http.Request) {
+	// Extract the token from the query parameters.
+	token := r.URL.Query().Get("token")
+	fmt.Println("token:", token)
+	if token == "" {
+		http.Error(w, "Unauthorized: No token provided", http.StatusUnauthorized)
+		return
 	}
-	return h
-}
 
+	// Authenticate using the token
+	cropPotDbObject, err := controllers.FindPotByToken(token)
+	if err != nil {
+		utils.JsonError(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 
-func HandleConnection(w http.ResponseWriter, r *http.Request) {
+	// Store the pot ID in the context
+	ctx := context.WithValue(r.Context(), wsTypes.CropPotIDKey, cropPotDbObject.ID)
+	r = r.WithContext(ctx)
+
+	// Upgrade the HTTP connection to a WebSocket connection
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		fmt.Println("Error while upgrading connection:", err)
@@ -44,56 +54,37 @@ func HandleConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	connection := &wsTypes.Connection{
-		Conn: conn,
-		Send: make(chan []byte),
+		Conn:    conn,
+		Send:    make(chan []byte),
 		Context: r.Context(),
 	}
 
-	potID, ok := r.Context().Value(wsTypes.CropPotIDKey).(string)
-	if ok {
-		connManager.AddConnection(potID, connection)
-		defer connManager.RemoveConnection(potID)
-	}
+	connManager.AddConnection(string(cropPotDbObject.ID), connection)
+	defer connManager.RemoveConnection(string(cropPotDbObject.ID))
 
+	wsutils.SendValidRequest(connection, cropPotDbObject)
+	// Start handling messages
 	go HandleMessages(connection)
 	go wsutils.SendMessages(connection)
+
+	fmt.Println("New WebSocket connection established")
+
 }
 
-
-// LoggingMiddleware logs basic information about the HTTP request.
-func LoggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("New WebSocket connection")
-		next.ServeHTTP(w, r)
-	}
-}
-
-
-// TokenLoggingMiddleware extracts and prints the ?token query parameter from the request.
-func AuthMiddlewear(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract the token from the query parameters.
-		token := r.URL.Query().Get("token")
-		if token == "" {
-			http.Error(w, "Unauthorized: No token provided", http.StatusUnauthorized)
-			return
-		}
-
-		cropPotDbObject, err := controllers.FindPotByToken(token)
-		if err != nil {
-			utils.JsonError(w, err.Error(), http.StatusUnauthorized)
-			return
-		}
-
-		ctx := context.WithValue(r.Context(), wsTypes.CropPotIDKey, cropPotDbObject.ID)
-		r = r.WithContext(ctx)
-
-		next.ServeHTTP(w, r)
-	}
-}
-// SetupWebSocketRoutes sets up the WebSocket routes with the provided middleware.
 func SetupWebSocketRoutes(r *mux.Router) {
 	ws := r.PathPrefix("/v1").Subrouter()
-	ws.HandleFunc("/", ApplyMiddleware(HandleConnection, AuthMiddlewear, LoggingMiddleware))
+	ws.HandleFunc("/", Middleware)
 }
 
+
+func toJSON(data interface{}) json.RawMessage {
+	if data == nil {
+		return nil
+	}
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshalling data:", err)
+		return nil
+	}
+	return dataBytes
+}

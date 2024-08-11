@@ -29,7 +29,6 @@ func InitDB() *gorm.DB {
 	return db
 }
 
-
 func main() {
 	// Initialize the router
 	r := mux.NewRouter()
@@ -44,14 +43,14 @@ func main() {
 	initPackage.SetDatabase(db)
 
 	// Auto migrate the database models
-	err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.SensorData{})
+	err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.SensorData{}, &models.ControlSettings{})
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}
 
 	fmt.Println("Pinged your deployment. You successfully connected to SQL Server!")
 
-	authMiddleware := clerkhttp.WithHeaderAuthorization()
+	authMiddleware := clerkhttp.RequireHeaderAuthorization()
 	api.Use(authMiddleware)
 
 	// PUBLIC ROUTES
@@ -60,8 +59,14 @@ func main() {
 	// PROTECTED ROUTES
 	api.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
 	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
-	api.HandleFunc("/cropPots/{id}", controllers.UpdateCropPot).Methods("PUT")
-	api.HandleFunc("/cropPots/{id}", controllers.RemoveCropPot).Methods("DELETE")
+
+	// example - alias for crop pot, ownership, etc
+	api.HandleFunc("/cropPots/{potId}", controllers.UpdateCropPot).Methods("PUT")
+	api.HandleFunc("/cropPots/{potId}", controllers.RemoveCropPot).Methods("DELETE")
+
+	api.HandleFunc("/cropPots/controlls/{controllSettingsId}", controllers.UpdateControllSettings).Methods("PUT")
+
+	api.HandleFunc("/test", test)
 
 	// WEBSOCKET CONNECTIONS
 	websocket.SetupWebSocketRoutes(r)
@@ -80,6 +85,10 @@ func main() {
 	handler := c.Handler(r)
 
 	// Start the server
-	log.Fatal(http.ListenAndServe(":8080", handler))
 	fmt.Println("Server listening on port 8080!")
+	log.Fatal(http.ListenAndServe(":8080", handler))
+}
+
+func test(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Worked!")
 }

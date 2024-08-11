@@ -22,9 +22,6 @@ func ClerkUserRegister(w http.ResponseWriter, r *http.Request) {
     fmt.Println("response")
     fmt.Println(clerkResponse)
 
-	fmt.Println("response 1")
-    //fmt.Println(&clerkResponse.ID)
-
     user := models.User{
         ClerkID: clerkResponse.Data.ID,
         IsAdmin_: false,
