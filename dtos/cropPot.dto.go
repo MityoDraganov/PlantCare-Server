@@ -1,6 +1,8 @@
 package dtos
 
-import "time"
+import (
+	"time"
+)
 
 type ControlSettingsResponse struct {
 	WateringInterval int
@@ -8,12 +10,13 @@ type ControlSettingsResponse struct {
 
 // CropPotResponse represents the response DTO for a CropPot
 type CropPotResponse struct {
-	ID               uint
-	Alias            string
-	LastWateredAt    *time.Time 
-	IsArchived       bool
-	ControlSettings  *ControlSettingsResponse
-	
+    ID              uint                      `json:"id"`
+    Alias           string                    `json:"alias"`
+    LastWateredAt   *time.Time                `json:"lastWateredAt"`
+    IsArchived      bool                      `json:"isArchived"`
+    ControlSettings *ControlSettingsResponse  `json:"controlSettings"`
+    SensorData      []SensorDataResponse      `json:"sensorData"`
+    CustomSensorData []CustomSensorDataResponse `json:"customSensorData"`
 }
 
 // CreateCropPot represents the data transfer object for creating/updating CropPot

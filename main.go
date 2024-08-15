@@ -30,49 +30,42 @@ func InitDB() *gorm.DB {
 }
 
 func main() {
-	// Initialize the router
-	r := mux.NewRouter()
-
-	// Apply the path prefix
-	api := r.PathPrefix("/api/v1").Subrouter()
-
 	clerk.SetKey("sk_test_gy7eUfUIotA7K6RXGOa0VJBUclqUhHRSmOI6zqriDU")
-
-	// Initialize the database
-	db := InitDB()
-	initPackage.SetDatabase(db)
-
-	// Auto migrate the database models
-	err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.SensorData{}, &models.ControlSettings{})
-	if err != nil {
-		log.Fatal("failed to migrate database:", err)
-	}
-
-	fmt.Println("Pinged your deployment. You successfully connected to SQL Server!")
+	r := mux.NewRouter()
+	api := r.PathPrefix("/api/v1").Subrouter()
 
 	authMiddleware := clerkhttp.RequireHeaderAuthorization()
 	api.Use(authMiddleware)
 
-	// PUBLIC ROUTES
+	db := InitDB()
+	initPackage.SetDatabase(db)
+
+	err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.SensorData{}, &models.ControlSettings{}, &models.CustomSensorField{}, &models.CustomSensorData{})
+	if err != nil {
+		log.Fatal("failed to migrate database:", err)
+	}
+
+
 	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister)
 
 	// PROTECTED ROUTES
-	api.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
-	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
 
-	// example - alias for crop pot, ownership, etc
-	api.HandleFunc("/cropPots/{potId}", controllers.UpdateCropPot).Methods("PUT")
-	api.HandleFunc("/cropPots/{potId}", controllers.RemoveCropPot).Methods("DELETE")
+	pots := api.PathPrefix("/cropPots").Subrouter()
+	pots.HandleFunc("/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
 
-	api.HandleFunc("/cropPots/controlls/{controllSettingsId}", controllers.UpdateControllSettings).Methods("PUT")
 
-	api.HandleFunc("/test", test)
+	pots.HandleFunc("", controllers.GetCropPotsForUser).Methods("GET")
+	pots.HandleFunc("/{potId}", controllers.UpdateCropPot).Methods("PUT")
+	pots.HandleFunc("/{potId}", controllers.RemoveCropPot).Methods("DELETE")
+
+	pots.HandleFunc("/controlls/{controllSettingsId}", controllers.UpdateControllSettings).Methods("PUT")
 
 	// WEBSOCKET CONNECTIONS
 	websocket.SetupWebSocketRoutes(r)
 
 	// ADMIN ACTIONS
-	r.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
+	adminR := r.NewRoute().Subrouter()
+	adminR.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
 
 	// CORS configuration
 	c := cors.New(cors.Options{

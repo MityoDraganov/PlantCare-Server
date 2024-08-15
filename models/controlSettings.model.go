@@ -6,8 +6,5 @@ import (
 
 type ControlSettings struct {
     gorm.Model
-    WateringInterval int        `json:"wateringInterval"` // in minutes
-
-
-    CropPotID uint `json:"cropPotId"`
+    WateringInterval int        `json:"wateringInterval"`
 }
