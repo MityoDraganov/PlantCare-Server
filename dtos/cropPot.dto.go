@@ -16,7 +16,6 @@ type CropPotResponse struct {
     IsArchived      bool                      `json:"isArchived"`
     ControlSettings *ControlSettingsResponse  `json:"controlSettings"`
     SensorData      []SensorDataResponse      `json:"sensorData"`
-    CustomSensorData []CustomSensorDataResponse `json:"customSensorData"`
 }
 
 // CreateCropPot represents the data transfer object for creating/updating CropPot

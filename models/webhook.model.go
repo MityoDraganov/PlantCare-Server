@@ -8,5 +8,5 @@ type Webhook struct {
 
 	EndpointUrl      string  `json:"endpointUrl"`
 	Description      *string `json:"description"`
-	SubscribedEvents []string
+	SubscribedEvents []Sensor `gorm:"many2many:webhook_sensors;"`
 }

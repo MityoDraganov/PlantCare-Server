@@ -17,9 +17,8 @@ type CropPot struct {
 
 	LastWateredAt *time.Time
 
-	SensorDatas        []SensorData        `gorm:"foreignKey:CropPotID"`
-	CustomSensorFields []CustomSensorField `gorm:"foreignKey:CropPotID"`
-	Webhooks           []Webhook           `gorm:"foreignKey:CropPotID"`
+	Sensors  []Sensor
+	Webhooks []Webhook `gorm:"foreignKey:CropPotID"`
 
 	ControlSettingsID *uint `json:"controlSettingsId"`
 	ControlSettings   *ControlSettings

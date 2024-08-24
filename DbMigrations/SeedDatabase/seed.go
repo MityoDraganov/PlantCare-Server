@@ -69,7 +69,7 @@ func SeedDatabase(db *gorm.DB) error {
     }
 
     // Create SensorData
-    sensorData := []models.SensorData{
+    measurement := []models.Measurement{
         {
             Temperature: 22.5,
             Moisture:    75.0,

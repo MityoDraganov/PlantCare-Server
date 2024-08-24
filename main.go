@@ -10,6 +10,7 @@ import (
 
 	"PlantCare/controllers"
 	"PlantCare/initPackage"
+	"PlantCare/middlewears"
 	"PlantCare/models"
 	"PlantCare/websocket"
 
@@ -40,19 +41,20 @@ func main() {
 	db := InitDB()
 	initPackage.SetDatabase(db)
 
-	err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.SensorData{}, &models.ControlSettings{}, &models.CustomSensorField{}, &models.CustomSensorData{})
+	err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.Sensor{}, &models.Measurement{}, &models.ControlSettings{}, &models.Webhook{})
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}
-
 
 	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister)
 
 	// PROTECTED ROUTES
 
-	pots := api.PathPrefix("/cropPots").Subrouter()
-	pots.HandleFunc("/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
+	// --CROP POTS--
+	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
 
+	pots := api.PathPrefix("/cropPots").Subrouter()
+	pots.Use(middlewears.PotMiddleware)
 
 	pots.HandleFunc("", controllers.GetCropPotsForUser).Methods("GET")
 	pots.HandleFunc("/{potId}", controllers.UpdateCropPot).Methods("PUT")
@@ -60,14 +62,21 @@ func main() {
 
 	pots.HandleFunc("/controlls/{controllSettingsId}", controllers.UpdateControllSettings).Methods("PUT")
 
-	// WEBSOCKET CONNECTIONS
-	websocket.SetupWebSocketRoutes(r)
+	// --WEBHOOKS--
+	webhooks := api.PathPrefix("/webhooks").Subrouter()
+	webhooks.Use(middlewears.PotMiddleware)
 
-	// ADMIN ACTIONS
+	webhooks.HandleFunc("{potId}", controllers.AddWebhook).Methods("POST")
+	webhooks.HandleFunc("{potId}/{webhookId}", controllers.AddWebhook).Methods("PUT")
+	webhooks.HandleFunc("{potId}/{webhookId}", controllers.RemoveCropPot).Methods("DELETE")
+
+	// --ADMIN ACTIONS--
 	adminR := r.NewRoute().Subrouter()
 	adminR.HandleFunc("/cropPots", controllers.AddCropPot).Methods("POST")
 
-	// CORS configuration
+	// WEBSOCKET CONNECTIONS
+	websocket.SetupWebSocketRoutes(r)
+
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173", "192.168.0.120"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
@@ -76,12 +85,6 @@ func main() {
 	})
 
 	handler := c.Handler(r)
-
-	// Start the server
 	fmt.Println("Server listening on port 8080!")
 	log.Fatal(http.ListenAndServe(":8080", handler))
-}
-
-func test(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Worked!")
 }

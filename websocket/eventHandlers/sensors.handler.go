@@ -16,7 +16,9 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 
 	err := json.Unmarshal(data, &sensorDto)
     if err != nil {
-        fmt.Println("Error while unmarshaling sensor data:", err)
+
+		
+		fmt.Println("Error while unmarshaling sensor data:", err)
         return
     }
 
