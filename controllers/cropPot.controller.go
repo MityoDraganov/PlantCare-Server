@@ -13,57 +13,60 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/gorilla/mux"
-
 	"gorm.io/gorm/clause"
 )
 
 func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
-    claims, ok := clerk.SessionClaimsFromContext(r.Context())
-    if !ok {
-        w.WriteHeader(http.StatusUnauthorized)
-        w.Write([]byte(`{"error": "unauthorized"}`))
-        return
-    }
-    cropPots, err := findPotsByUserId(claims.Subject)
-    if err != nil {
-        fmt.Println("Error extracting session claims")
-        utils.JsonError(w, "Pots not found!", http.StatusNotFound)
-        return
-    }
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "unauthorized"}`))
+		return
+	}
+	cropPots, err := findPotsByUserId(claims.Subject)
+	if err != nil {
+		fmt.Println("Error extracting session claims")
+		utils.JsonError(w, "Pots not found!", http.StatusNotFound)
+		return
+	}
 
-    // Map the crop pots to the DTOs
-    var cropPotResponses []dtos.CropPotResponse
-    for _, cropPot := range cropPots {
-        var controlSettingsResponse *dtos.ControlSettingsResponse
-        if cropPot.ControlSettings != nil {
-            controlSettingsResponse = &dtos.ControlSettingsResponse{
-                WateringInterval: cropPot.ControlSettings.WateringInterval,
-            }
-        }
+	// Map the crop pots to the DTOs
+	var cropPotResponses []dtos.CropPotResponse
+	for _, cropPot := range cropPots {
+		var controlSettingsResponse *dtos.ControlSettingsResponse
+		if cropPot.ControlSettings != nil {
+			controlSettingsResponse = &dtos.ControlSettingsResponse{
+				WateringInterval: cropPot.ControlSettings.WateringInterval,
+			}
+		}
 
-        // Map SensorData
-        var sensorDataResponses []dtos.SensorDataResponse
-        for _, sensorData := range cropPot.Sensors {
-            sensorDataResponses = append(sensorDataResponses, dtos.SensorDataResponse{
-				CreatedAt: sensorData.CreatedAt,
-            })
-        }
+		// Map SensorData
+		var sensorDataResponses []dtos.SensorResponseDto
+		for _, sensorData := range cropPot.Sensors {
+			sensorDataResponses = append(sensorDataResponses, dtos.SensorResponseDto{
+				ID: sensorData.ID,
+				SerialNumber: sensorData.SerialNumber,
+				Measurements: sensorData.Measurements,
+				Description:  sensorData.Description,
+				Alias:        sensorData.Alias,
+				IsOfficial:   sensorData.IsOfficial,
+			})
+		}
 
-        cropPotResponse := dtos.CropPotResponse{
-            ID:                cropPot.ID,
-            Alias:             cropPot.Alias,
-            LastWateredAt:     cropPot.LastWateredAt,
-            IsArchived:        cropPot.IsArchived,
-            ControlSettings:   controlSettingsResponse,
-            SensorData:        sensorDataResponses,
-        }
-        cropPotResponses = append(cropPotResponses, cropPotResponse)
-    }
+		cropPotResponse := dtos.CropPotResponse{
+			ID:              cropPot.ID,
+			Alias:           cropPot.Alias,
+			LastWateredAt:   cropPot.LastWateredAt,
+			IsArchived:      cropPot.IsArchived,
+			ControlSettings: controlSettingsResponse,
+			Sensors:         sensorDataResponses,
+		}
+		cropPotResponses = append(cropPotResponses, cropPotResponse)
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(cropPotResponses)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cropPotResponses)
 }
-
 
 func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -122,7 +125,7 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(cropPotDBObject)
 }
 
-func RemoveCropPot(w http.ResponseWriter, r *http.Request) {	
+func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["potId"]
 
@@ -168,7 +171,7 @@ func AddCropPot(w http.ResponseWriter, r *http.Request) {
 }
 
 func FindCropPotById(id string) (*models.CropPot, error) {
-	
+
 	var cropPot models.CropPot
 	result := initPackage.Db.First(&cropPot, "id = ?", id)
 	if result.Error != nil {
@@ -186,17 +189,18 @@ func FindPotByToken(token string) (*models.CropPot, error) {
 }
 
 func findPotsByUserId(userId string) ([]models.CropPot, error) {
-    var cropPots []models.CropPot
-    result := initPackage.Db.
-        Preload("SensorDatas").
-        Preload("CustomSensorFields.CustomSensorData").
-        Preload("ControlSettings").
-        Where("clerk_user_id = ?", userId).
-        Find(&cropPots)
+	var cropPots []models.CropPot
+	result := initPackage.Db.
+		Preload("Sensors").
+		Preload("Sensors.Measurements").
+		Preload("ControlSettings").
+		Preload("Webhooks").
+		Where("clerk_user_id = ?", userId).
+		Find(&cropPots)
 
-    if result.Error != nil {
-        return nil, result.Error
-    }
+	if result.Error != nil {
+		return nil, result.Error
+	}
 
-    return cropPots, nil
+	return cropPots, nil
 }

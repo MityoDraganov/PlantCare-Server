@@ -52,23 +52,24 @@ func main() {
 
 	// --CROP POTS--
 	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
+	api.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
 
 	pots := api.PathPrefix("/cropPots").Subrouter()
 	pots.Use(middlewears.PotMiddleware)
-
-	pots.HandleFunc("", controllers.GetCropPotsForUser).Methods("GET")
 	pots.HandleFunc("/{potId}", controllers.UpdateCropPot).Methods("PUT")
 	pots.HandleFunc("/{potId}", controllers.RemoveCropPot).Methods("DELETE")
 
-	pots.HandleFunc("/controlls/{controllSettingsId}", controllers.UpdateControllSettings).Methods("PUT")
+	// --CONTROLS--
+	controls := api.PathPrefix("/controlls").Subrouter()
+	controls.HandleFunc("/{controllSettingsId}", controllers.UpdateControllSettings).Methods("PUT")
 
 	// --WEBHOOKS--
 	webhooks := api.PathPrefix("/webhooks").Subrouter()
 	webhooks.Use(middlewears.PotMiddleware)
 
-	webhooks.HandleFunc("{potId}", controllers.AddWebhook).Methods("POST")
-	webhooks.HandleFunc("{potId}/{webhookId}", controllers.AddWebhook).Methods("PUT")
-	webhooks.HandleFunc("{potId}/{webhookId}", controllers.RemoveCropPot).Methods("DELETE")
+	webhooks.HandleFunc("/{potId}", controllers.AddWebhook).Methods("POST")
+	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.AddWebhook).Methods("PUT")
+	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.RemoveCropPot).Methods("DELETE")
 
 	// --ADMIN ACTIONS--
 	adminR := r.NewRoute().Subrouter()

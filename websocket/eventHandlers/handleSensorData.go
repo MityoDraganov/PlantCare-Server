@@ -1,8 +1,11 @@
 package eventHandlers
 
 import (
+	"PlantCare/controllers"
+	"PlantCare/dtos"
 	"PlantCare/initPackage"
 	"PlantCare/models"
+	"PlantCare/utils"
 	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
 	wsutils "PlantCare/websocket/wsUtils"
@@ -26,8 +29,14 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 
     fmt.Printf("Handling sensor data: %+v\n", sensorDataDto)
 
+    sensorDbObject, err := controllers.FindSensorBySerialNum(sensorDataDto.SensorSerialNumber)
+    if err != nil {
+		wsutils.SendErrorResponse(connection, http.StatusBadRequest)
+		return
+	}
+
     measurementData := models.Measurement{
-        SensorID: sensorDataDto.SensorID,
+        SensorID: sensorDbObject.ID,
         Value: sensorDataDto.Value,
     }
     
@@ -37,6 +46,24 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
        wsutils.SendErrorResponse(connection, http.StatusNotFound)
     }
 
+    webhooks, err := controllers.GetSubscribedWebhooksForSensor(sensorDbObject.ID)
+	if err != nil {
+        wsutils.SendErrorResponse(connection, http.StatusBadRequest)
+	}
+
+    for _, webhook := range webhooks {
+        payload := dtos.WebhookResponse{
+            Sensor: dtos.SensorWebhookResponse{
+                SerialNumber: sensorDbObject.SerialNumber,
+                Alias: sensorDbObject.Alias,
+                Description: sensorDbObject.Description,
+            },
+            Measurement: measurementData,
+        }
+		go utils.TriggerWebhook(webhook.EndpointUrl, payload)
+	}
+
     fmt.Println(measurementDataDbObject)
     wsutils.SendValidResponse(connection, nil)
 }
+

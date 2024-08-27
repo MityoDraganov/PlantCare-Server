@@ -1,4 +1,3 @@
-// seed.go
 package main
 
 import (
@@ -21,11 +20,17 @@ func InitDBSeed() *gorm.DB {
 }
 
 func SeedDatabase(db *gorm.DB) error {
-    err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.SensorData{}, &models.ControlSettings{})
+    err := db.AutoMigrate(
+		&models.User{}, 
+		&models.CropPot{}, 
+		&models.Sensor{}, 
+		&models.Measurement{}, 
+		&models.ControlSettings{}, 
+		&models.Webhook{},
+	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}
-
 
     users := []models.User{
         {ClerkID: "user_2jod4hRuJ9nqUIzftpaTTNWLVxv", IsAdmin_: false},
@@ -68,24 +73,37 @@ func SeedDatabase(db *gorm.DB) error {
         return err
     }
 
-    // Create SensorData
-    measurement := []models.Measurement{
+    // Create Sensors
+    sensors := []models.Sensor{
         {
-            Temperature: 22.5,
-            Moisture:    75.0,
-            WaterLevel:  50.0,
-            SunExposure: 80.0,
-            CropPotID:   cropPots[0].ID,
+            CropPotID:    cropPots[0].ID,
+            SerialNumber: "sensor_1",
+            Alias:        "Temperature Sensor",
+            IsOfficial:   true,
         },
         {
-            Temperature: 21.0,
-            Moisture:    65.0,
-            WaterLevel:  45.0,
-            SunExposure: 70.0,
-            CropPotID:   cropPots[1].ID,
+            CropPotID:    cropPots[1].ID,
+            SerialNumber: "sensor_2",
+            Alias:        "Moisture Sensor",
+            IsOfficial:   true,
         },
     }
-    if err := db.Create(&sensorData).Error; err != nil {
+    if err := db.Create(&sensors).Error; err != nil {
+        return err
+    }
+
+    // Create Measurements
+    measurements := []models.Measurement{
+        {
+            SensorID: sensors[0].ID,
+            Value:    22.5,
+        },
+        {
+            SensorID: sensors[1].ID,
+            Value:    65.0,
+        },
+    }
+    if err := db.Create(&measurements).Error; err != nil {
         return err
     }
 

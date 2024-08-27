@@ -7,5 +7,12 @@ type AddWebhookDto struct {
 
 	EndpointUrl      string  `json:"endpointUrl"`
 	Description      *string `json:"description"`
-	SubscribedEvents []models.Sensor  `json:"subscribedEvents"`
+	SubscribedEventsSerialNums []string  `json:"subscribedEventsSerialNums"`
+}
+
+type WebhookResponse struct {
+	Sensor SensorWebhookResponse
+
+	Measurement models.Measurement
+	IsOfficial bool
 }

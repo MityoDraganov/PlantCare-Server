@@ -15,7 +15,8 @@ type CropPotResponse struct {
     LastWateredAt   *time.Time                `json:"lastWateredAt"`
     IsArchived      bool                      `json:"isArchived"`
     ControlSettings *ControlSettingsResponse  `json:"controlSettings"`
-    SensorData      []SensorDataResponse      `json:"sensorData"`
+    Sensors      []SensorResponseDto      `json:"sensors"`
+    Webhooks []WebhookResponse `json:"webhooks"`
 }
 
 // CreateCropPot represents the data transfer object for creating/updating CropPot

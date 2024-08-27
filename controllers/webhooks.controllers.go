@@ -10,7 +10,6 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-
 )
 
 func AddWebhook(w http.ResponseWriter, r *http.Request) {
@@ -30,10 +29,22 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var subscribedEvents []models.Sensor
+	for _, subscribedEventSerialNum := range webhookDto.SubscribedEventsSerialNums {
+		subscibedEvent, err := FindSensorBySerialNum(subscribedEventSerialNum)
+		if err != nil {
+			utils.JsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		subscribedEvents = append(subscribedEvents, *subscibedEvent)
+	}
+
 	webhook := models.Webhook{
 		CropPotID:   uint(potId),
 		EndpointUrl: webhookDto.EndpointUrl,
-		SubscribedEvents: webhookDto.SubscribedEvents,
+		SubscribedEvents: subscribedEvents,
+		Description: webhookDto.Description,
 	}
 
 	webhookDbObject := initPackage.Db.Create(&webhook)
@@ -61,4 +72,13 @@ func findWebhookById(id string) (*models.Webhook, error) {
 		return nil, result.Error
 	}
 	return &webhook, nil
+}
+
+
+func GetSubscribedWebhooksForSensor(sensorID uint) ([]models.Webhook, error) {
+	var webhooks []models.Webhook
+	err := initPackage.Db.Joins("JOIN webhook_sensors ON webhook_sensors.webhook_id = webhooks.id").
+		Where("webhook_sensors.sensor_id = ?", sensorID).
+		Find(&webhooks).Error
+	return webhooks, err
 }
