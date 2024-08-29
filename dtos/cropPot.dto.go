@@ -15,7 +15,7 @@ type CropPotResponse struct {
     LastWateredAt   *time.Time                `json:"lastWateredAt"`
     IsArchived      bool                      `json:"isArchived"`
     ControlSettings *ControlSettingsResponse  `json:"controlSettings"`
-    Sensors      []SensorResponseDto      `json:"sensors"`
+    Sensors      []SensorDto      `json:"sensors"`
     Webhooks []WebhookResponse `json:"webhooks"`
 }
 

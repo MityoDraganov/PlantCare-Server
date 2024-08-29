@@ -1,7 +1,5 @@
 package dtos
 
-import "PlantCare/models"
-
 type AddWebhookDto struct {
 	CropPotID uint
 
@@ -11,8 +9,9 @@ type AddWebhookDto struct {
 }
 
 type WebhookResponse struct {
-	Sensor SensorWebhookResponse
-
-	Measurement models.Measurement
-	IsOfficial bool
+	ID uint `json:"id"`
+	EndpointUrl      string  `json:"endpointUrl"`
+	Description      *string `json:"description"`
+	SubscribedEvents []SensorDto `json:"subscribedEvents"`
 }
+

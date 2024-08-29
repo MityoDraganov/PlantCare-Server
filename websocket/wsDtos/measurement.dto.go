@@ -2,6 +2,6 @@ package wsDtos
 
 
 type SensorMeasuremntDto struct {
-	SensorSerialNumber string `json:"sensorSerialNumber"`
+	SensorSerialNumber string `json:"x"`
 	Value float32 `json:"value"`
 }

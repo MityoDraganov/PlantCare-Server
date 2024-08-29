@@ -1,14 +1,14 @@
 package utils
 
 import (
-	"PlantCare/dtos"
+	"PlantCare/websocket/wsDtos"
 	"bytes"
 	"encoding/json"
 	"log"
 	"net/http"
 )
 
-func TriggerWebhook(endpointUrl string, payload dtos.WebhookResponse) {
+func TriggerWebhook(endpointUrl string, payload wsDtos.WebhookPayload) {
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Failed to marshal payload: %v", err)

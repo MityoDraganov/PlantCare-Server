@@ -4,7 +4,7 @@ import (
 	"PlantCare/models"
 )
 
-type SensorResponseDto struct {
+type SensorDto struct {
 	ID uint `json:"id"`
 	SerialNumber string `json:"serialNumber"`
 	Alias        string `json:"alias"`
@@ -12,10 +12,4 @@ type SensorResponseDto struct {
 
 	Measurements []models.Measurement `json:"measurements"`
 	IsOfficial   bool `json:"isOfficial"`
-}
-
-type SensorWebhookResponse struct {
-	SerialNumber string
-	Alias        string
-	Description  *string
 }

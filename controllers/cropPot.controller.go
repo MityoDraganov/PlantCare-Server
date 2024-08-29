@@ -41,16 +41,41 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Map SensorData
-		var sensorDataResponses []dtos.SensorResponseDto
+		var sensorDataResponses []dtos.SensorDto
 		for _, sensorData := range cropPot.Sensors {
-			sensorDataResponses = append(sensorDataResponses, dtos.SensorResponseDto{
+			sensorDataResponses = append(sensorDataResponses, dtos.SensorDto{
 				ID: sensorData.ID,
 				SerialNumber: sensorData.SerialNumber,
 				Measurements: sensorData.Measurements,
 				Description:  sensorData.Description,
 				Alias:        sensorData.Alias,
 				IsOfficial:   sensorData.IsOfficial,
+		
 			})
+		}
+
+		var webhookResponses []dtos.WebhookResponse
+		for _, webhook := range cropPot.Webhooks {
+
+			var subscribedEvents []dtos.SensorDto
+			for _, event := range webhook.SubscribedEvents {
+				subscribedEvent := dtos.SensorDto{
+					SerialNumber: event.SerialNumber,
+					Alias: event.Alias,
+					Description: event.Description,
+				}
+
+				subscribedEvents = append(subscribedEvents, subscribedEvent)
+			}
+
+			webhookResponse := dtos.WebhookResponse{
+				ID: webhook.ID,
+				EndpointUrl: webhook.EndpointUrl,
+				Description: webhook.Description,
+				SubscribedEvents: subscribedEvents,
+			}
+
+			webhookResponses = append(webhookResponses, webhookResponse)
 		}
 
 		cropPotResponse := dtos.CropPotResponse{
@@ -60,6 +85,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 			IsArchived:      cropPot.IsArchived,
 			ControlSettings: controlSettingsResponse,
 			Sensors:         sensorDataResponses,
+			Webhooks: webhookResponses,
 		}
 		cropPotResponses = append(cropPotResponses, cropPotResponse)
 	}
@@ -195,6 +221,7 @@ func findPotsByUserId(userId string) ([]models.CropPot, error) {
 		Preload("Sensors.Measurements").
 		Preload("ControlSettings").
 		Preload("Webhooks").
+		Preload("Webhooks.SubscribedEvents").
 		Where("clerk_user_id = ?", userId).
 		Find(&cropPots)
 

@@ -69,7 +69,7 @@ func main() {
 
 	webhooks.HandleFunc("/{potId}", controllers.AddWebhook).Methods("POST")
 	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.AddWebhook).Methods("PUT")
-	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.RemoveCropPot).Methods("DELETE")
+	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.DeleteWebhook).Methods("DELETE")
 
 	// --ADMIN ACTIONS--
 	adminR := r.NewRoute().Subrouter()
