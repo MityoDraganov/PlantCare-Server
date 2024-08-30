@@ -7,7 +7,6 @@ import (
 
 	"PlantCare/models"
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -18,9 +17,6 @@ func ClerkUserRegister(w http.ResponseWriter, r *http.Request) {
         utils.JsonError(w, err.Error(), http.StatusBadRequest)
         return
     }
-
-    fmt.Println("response")
-    fmt.Println(clerkResponse)
 
     user := models.User{
         ClerkID: clerkResponse.Data.ID,

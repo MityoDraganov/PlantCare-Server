@@ -12,7 +12,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func AddWebhook(w http.ResponseWriter, r *http.Request) {
@@ -33,8 +32,8 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var subscribedEvents []models.Sensor
-	for _, subscribedEventSerialNum := range webhookDto.SubscribedEventsSerialNums {
-		subscibedEvent, err := FindSensorBySerialNum(subscribedEventSerialNum)
+	for _, subscribedEvent := range webhookDto.SubscribedEvents {
+		subscibedEvent, err := FindSensorBySerialNum(subscribedEvent.SerialNumber)
 		if err != nil {
 			utils.JsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -44,45 +43,111 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	webhook := models.Webhook{
-		CropPotID:   uint(potId),
-		EndpointUrl: webhookDto.EndpointUrl,
+		CropPotID:        uint(potId),
+		EndpointUrl:      webhookDto.EndpointUrl,
 		SubscribedEvents: subscribedEvents,
-		Description: webhookDto.Description,
+		Description:      webhookDto.Description,
 	}
 
-	webhookDbObject := initPackage.Db.Create(&webhook)
-	if webhookDbObject.Error != nil {
-		utils.JsonError(w, webhookDbObject.Error.Error(), http.StatusInternalServerError)
+	result := initPackage.Db.Create(&webhook)
+	if result.Error != nil {
+		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	var subscribedEventsDto []dtos.SensorDto
+
+	for _, event := range webhook.SubscribedEvents {
+		subscribedEvent := dtos.SensorDto{
+			SerialNumber: event.SerialNumber,
+			Alias:        event.Alias,
+			Description:  event.Description,
+		}
+
+		subscribedEventsDto = append(subscribedEventsDto, subscribedEvent)
+	}
+
+	webhookResponse := dtos.WebhookResponse{
+		ID:               webhook.ID,
+		EndpointUrl:      webhook.EndpointUrl,
+		SubscribedEvents: subscribedEventsDto,
+		Description:      webhook.Description,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(webhook)
+	json.NewEncoder(w).Encode(webhookResponse)
 }
 
-func UpdateWebhook (w http.ResponseWriter, r *http.Request) {
-	var WebhookDto dtos.AddWebhookDto
+func UpdateWebhook(w http.ResponseWriter, r *http.Request) {
+	var webhookDto dtos.UpdateWebhookDto
 
-	err := json.NewDecoder(r.Body).Decode(&WebhookDto)
+	// Decode the JSON body into webhookDto
+	err := json.NewDecoder(r.Body).Decode(&webhookDto)
 	if err != nil {
 		utils.JsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	// Extract the webhook ID from the URL parameters
 	params := mux.Vars(r)
 	id := params["webhookId"]
 
-	webhookDBObject, err := findWebhookById(id)
-	if err != nil {
+	// Find the existing webhook by ID
+	var existingWebhook models.Webhook
+	if err := initPackage.Db.Preload("SubscribedEvents").First(&existingWebhook, id).Error; err != nil {
+		utils.JsonError(w, "Webhook not found", http.StatusNotFound)
+		return
+	}
+
+	// Handle subscribed events
+	if webhookDto.SubscribedEvents != nil {
+		// Clear existing associations
+		if err := initPackage.Db.Model(&existingWebhook).Association("SubscribedEvents").Clear(); err != nil {
+			utils.JsonError(w, "Failed to clear existing subscribed events", http.StatusInternalServerError)
+			return
+		}
+
+		var newSubscribedEvents []models.Sensor
+		for _, subscribedEvent := range *webhookDto.SubscribedEvents {
+			subscribedEventDbo, err := FindSensorBySerialNum(subscribedEvent.SerialNumber)
+			if err != nil {
+				utils.JsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			newSubscribedEvents = append(newSubscribedEvents, *subscribedEventDbo)
+		}
+		// Update with the new associations
+		existingWebhook.SubscribedEvents = newSubscribedEvents
+	}
+
+	// Update the fields of the existing webhook with provided values
+	if webhookDto.EndpointUrl != nil {
+		existingWebhook.EndpointUrl = *webhookDto.EndpointUrl
+	}
+	if webhookDto.Description != nil {
+		existingWebhook.Description = webhookDto.Description
+	}
+
+	// Save the updated webhook to the database
+	if err := initPackage.Db.Save(&existingWebhook).Error; err != nil {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	initPackage.Db.Model(&webhookDBObject).Clauses(clause.Returning{}).Updates(WebhookDto)
+	webhookResponse := dtos.WebhookResponse{
+		ID:               existingWebhook.ID,
+		EndpointUrl:      existingWebhook.EndpointUrl,
+		Description:      existingWebhook.Description,
+		SubscribedEvents: *webhookDto.SubscribedEvents,
+	}
 
+	// Set the response header and encode the updated webhook object
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(webhookDBObject)
+	if err := json.NewEncoder(w).Encode(webhookResponse); err != nil {
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
-
 
 func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
@@ -110,7 +175,6 @@ func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-
 func findWebhookById(id string) (*models.Webhook, error) {
 	var webhook models.Webhook
 	result := initPackage.Db.First(&webhook, "id = ?", id)
@@ -119,7 +183,6 @@ func findWebhookById(id string) (*models.Webhook, error) {
 	}
 	return &webhook, nil
 }
-
 
 func GetSubscribedWebhooksForSensor(sensorID uint) ([]models.Webhook, error) {
 	var webhooks []models.Webhook

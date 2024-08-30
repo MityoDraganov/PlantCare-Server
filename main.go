@@ -68,7 +68,7 @@ func main() {
 	webhooks.Use(middlewears.PotMiddleware)
 
 	webhooks.HandleFunc("/{potId}", controllers.AddWebhook).Methods("POST")
-	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.AddWebhook).Methods("PUT")
+	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.UpdateWebhook).Methods("PUT")
 	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.DeleteWebhook).Methods("DELETE")
 
 	// --ADMIN ACTIONS--

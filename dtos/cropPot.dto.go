@@ -5,7 +5,8 @@ import (
 )
 
 type ControlSettingsResponse struct {
-	WateringInterval int
+    Id uint `json:"id"`
+	WateringInterval int `json:"wateringInterval"`
 }
 
 // CropPotResponse represents the response DTO for a CropPot

@@ -36,6 +36,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 		var controlSettingsResponse *dtos.ControlSettingsResponse
 		if cropPot.ControlSettings != nil {
 			controlSettingsResponse = &dtos.ControlSettingsResponse{
+				Id: *cropPot.ControlSettingsID,
 				WateringInterval: cropPot.ControlSettings.WateringInterval,
 			}
 		}
@@ -56,27 +57,30 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 
 		var webhookResponses []dtos.WebhookResponse
 		for _, webhook := range cropPot.Webhooks {
-
-			var subscribedEvents []dtos.SensorDto
+			// Initialize subscribedEvents as an empty slice
+			subscribedEvents := []dtos.SensorDto{}
+		
+			// Populate subscribedEvents if there are any
 			for _, event := range webhook.SubscribedEvents {
 				subscribedEvent := dtos.SensorDto{
 					SerialNumber: event.SerialNumber,
-					Alias: event.Alias,
-					Description: event.Description,
+					Alias:        event.Alias,
+					Description:  event.Description,
 				}
-
+		
 				subscribedEvents = append(subscribedEvents, subscribedEvent)
 			}
-
+		
 			webhookResponse := dtos.WebhookResponse{
-				ID: webhook.ID,
-				EndpointUrl: webhook.EndpointUrl,
-				Description: webhook.Description,
-				SubscribedEvents: subscribedEvents,
+				ID:              webhook.ID,
+				EndpointUrl:     webhook.EndpointUrl,
+				Description:     webhook.Description,
+				SubscribedEvents: subscribedEvents, // Will be an empty slice if no events
 			}
-
+		
 			webhookResponses = append(webhookResponses, webhookResponse)
 		}
+		
 
 		cropPotResponse := dtos.CropPotResponse{
 			ID:              cropPot.ID,
@@ -122,8 +126,6 @@ func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println("CropPot after update:", cropPotDBObject)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cropPotDBObject)

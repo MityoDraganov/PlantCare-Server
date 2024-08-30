@@ -3,7 +3,6 @@ package middlewears
 import (
 	"PlantCare/controllers"
 	"PlantCare/utils"
-	"fmt"
 	"net/http"
 
 	"github.com/clerk/clerk-sdk-go/v2"
@@ -12,7 +11,7 @@ import (
 
 func PotMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("ok til here")
+
 		claims, ok := clerk.SessionClaimsFromContext(r.Context())
 		if !ok {
 			utils.JsonError(w, "Unauthorized: unable to extract session claims", http.StatusUnauthorized)
@@ -21,9 +20,6 @@ func PotMiddleware(next http.Handler) http.Handler {
 
 		params := mux.Vars(r)
 		potId := params["potId"]
-
-		fmt.Println("potId")
-		fmt.Println(potId)
 
 		cropPot, err := controllers.FindCropPotById(potId)
 		if err != nil {

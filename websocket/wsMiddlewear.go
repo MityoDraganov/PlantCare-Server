@@ -29,7 +29,6 @@ var (
 func Middleware(w http.ResponseWriter, r *http.Request) {
 	// Extract the token from the query parameters.
 	token := r.URL.Query().Get("token")
-	fmt.Println("token:", token)
 	if token == "" {
 		http.Error(w, "Unauthorized: No token provided", http.StatusUnauthorized)
 		return

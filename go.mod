@@ -11,7 +11,6 @@ require (
 
 require (
 	github.com/clerk/clerk-sdk-go/v2 v2.0.4
-	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/rs/cors v1.11.0
 	github.com/stretchr/testify v1.8.4
