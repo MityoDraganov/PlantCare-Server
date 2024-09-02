@@ -49,7 +49,7 @@ func TestAssignCropPotToUser(t *testing.T) {
     req, _ := http.NewRequest("POST", "/assign-pot/valid-token", nil)
 
     claims := &clerk.SessionClaims{
-        clerk.RegisteredClaims{Subject: "user"}
+        clerk.RegisteredClaims{Subject: "user"},
     }
 	
     // Use a proper key for context (same as in actual handler)
@@ -78,7 +78,7 @@ func TestAssignCropPotToUser(t *testing.T) {
 
 func TestUpdateCropPot(t *testing.T) {
     w := httptest.NewRecorder()
-    updateData := dtos.ControlSettingsDTO{
+    updateData := dtos.ControlDto{
         WateringInterval: 7,
     }
     jsonValue, _ := json.Marshal(updateData)
@@ -93,7 +93,7 @@ func TestUpdateCropPot(t *testing.T) {
     db := &gorm.DB{}
     initPackage.Db = db
 
-    controlSettings := models.ControlSettings{
+    controlSettings := models.Control{
         WateringInterval: 5,
     }
     cropPot := models.CropPot{

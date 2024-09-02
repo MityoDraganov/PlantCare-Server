@@ -19,12 +19,14 @@ func InitDBDrop() *gorm.DB {
 
 func DropAllTables(db *gorm.DB) error {
 	modelsToDrop := []interface{}{
-		&models.Measurement{},
-		&models.Sensor{},
-		&models.Webhook{},
-		&models.CropPot{},
-		&models.ControlSettings{},
 		&models.User{},
+		&models.CropPot{},
+		&models.Sensor{}, 
+		&models.Measurement{}, 
+		&models.Control{}, 
+		&models.Webhook{}, 
+		&models.Update{},
+		&models.ActivePeriod{},
 	}
 
 	for _, model := range modelsToDrop {
@@ -33,6 +35,11 @@ func DropAllTables(db *gorm.DB) error {
 		}
 		log.Printf("Dropped table for model: %T", model)
 	}
+
+	if err := db.Migrator().DropTable("webhook_sensors"); err != nil {
+		return err
+	}
+	log.Println("Dropped table: webhook_sensors")
 
 	return nil
 }

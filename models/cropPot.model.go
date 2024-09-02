@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
@@ -15,11 +13,7 @@ type CropPot struct {
 	ClerkUserID *string
 	Alias       string `json:"alias" gorm:"size:255"`
 
-	LastWateredAt *time.Time
-
 	Sensors  []Sensor
 	Webhooks []Webhook `gorm:"foreignKey:CropPotID"`
-
-	ControlSettingsID *uint `json:"controlSettingsId"`
-	ControlSettings   *ControlSettings
+	Controls []Control `gorm:"foreignKey:CropPotID"`
 }

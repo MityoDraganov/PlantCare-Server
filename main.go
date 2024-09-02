@@ -41,7 +41,17 @@ func main() {
 	db := InitDB()
 	initPackage.SetDatabase(db)
 
-	err := db.AutoMigrate(&models.User{}, &models.CropPot{}, &models.Sensor{}, &models.Measurement{}, &models.ControlSettings{}, &models.Webhook{})
+	err := db.AutoMigrate(
+		&models.User{},
+		&models.CropPot{},
+		&models.Sensor{}, 
+		&models.Measurement{}, 
+		&models.Control{}, 
+		&models.Webhook{}, 
+		&models.Update{},
+		&models.ActivePeriod{},
+		
+	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}
@@ -60,8 +70,8 @@ func main() {
 	pots.HandleFunc("/{potId}", controllers.RemoveCropPot).Methods("DELETE")
 
 	// --CONTROLS--
-	controls := api.PathPrefix("/controlls").Subrouter()
-	controls.HandleFunc("/{controllSettingsId}", controllers.UpdateControllSettings).Methods("PUT")
+	controls := api.PathPrefix("/controls").Subrouter()
+	controls.HandleFunc("", controllers.UpdateControllSetting).Methods("PUT")
 
 	// --WEBHOOKS--
 	webhooks := api.PathPrefix("/webhooks").Subrouter()

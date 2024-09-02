@@ -1,10 +1,9 @@
 package main
 
 import (
+	"PlantCare/models"
 	"log"
 	"time"
-
-	"PlantCare/models"
 
 	"gorm.io/driver/sqlserver"
 	"gorm.io/gorm"
@@ -20,94 +19,118 @@ func InitDBSeed() *gorm.DB {
 }
 
 func SeedDatabase(db *gorm.DB) error {
-    err := db.AutoMigrate(
-		&models.User{}, 
-		&models.CropPot{}, 
-		&models.Sensor{}, 
-		&models.Measurement{}, 
-		&models.ControlSettings{}, 
+	// AutoMigrate the models to keep schema in sync
+	err := db.AutoMigrate(
+		&models.User{},
+		&models.CropPot{},
+		&models.Sensor{},
+		&models.Measurement{},
+		&models.Control{},
+		&models.Update{},
 		&models.Webhook{},
+		&models.ActivePeriod{},
 	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}
 
-    users := []models.User{
-        {ClerkID: "user_2jod4hRuJ9nqUIzftpaTTNWLVxv", IsAdmin_: false},
-    }
-    if err := db.Create(&users).Error; err != nil {
-        return err
-    }
+	// Seed Users
+	users := []models.User{
+		{ClerkID: "user_2jod4hRuJ9nqUIzftpaTTNWLVxv", IsAdmin_: false},
+	}
+	if err := db.Create(&users).Error; err != nil {
+		return err
+	}
 
-    // Create ControlSettings
-    controlSettings := []models.ControlSettings{
-        {WateringInterval: 30},
-        {WateringInterval: 60},
-    }
-    if err := db.Create(&controlSettings).Error; err != nil {
-        return err
-    }
+	// Seed CropPots
+	cropPots := []models.CropPot{
+		{
+			Token:       "pot_1",
+			Alias:       "Herb Garden",
+			IsArchived:  false,
+			ClerkUserID: &users[0].ClerkID,
+		},
+		{
+			Token:       "pot_2",
+			Alias:       "Vegetable Bed",
+			IsArchived:  false,
+			ClerkUserID: &users[0].ClerkID,
+		},
+	}
+	if err := db.Create(&cropPots).Error; err != nil {
+		return err
+	}
 
-	timeNow := time.Now()
+	// Seed Controls
+	controls := []models.Control{
+		{CropPotID: cropPots[0].ID, SerialNumber: "ctrl_1", Alias: "Water Pump", ActivePeriod: &models.ActivePeriod{
+			Start: time.Now(),
+			End: <-time.After(60 * 5),
+		}},
+		{CropPotID: cropPots[1].ID, SerialNumber: "ctrl_2", Alias: "Light Switch"},
+	}
+	if err := db.Create(&controls).Error; err != nil {
+		return err
+	}
 
-    // Create CropPots
-    cropPots := []models.CropPot{
-        {
-            Token:            "pot_1",
-            Alias:            "Herb Garden",
-            LastWateredAt:    &timeNow,
-            IsArchived:       false,
-            ClerkUserID:      &users[0].ClerkID,
-            ControlSettingsID: &controlSettings[0].ID,
-        },
-        {
-            Token:            "pot_2",
-            Alias:            "Vegetable Bed",
-            LastWateredAt:    &timeNow,
-            IsArchived:       false,
-            ClerkUserID:      &users[0].ClerkID,
-            ControlSettingsID: &controlSettings[1].ID,
-        },
-    }
-    if err := db.Create(&cropPots).Error; err != nil {
-        return err
-    }
+	// Seed Sensors
+	sensors := []models.Sensor{
+		{
+			CropPotID:    cropPots[0].ID,
+			SerialNumber: "sensor_1",
+			Alias:        "Temperature Sensor",
+			IsOfficial:   true,
+		},
+		{
+			CropPotID:    cropPots[1].ID,
+			SerialNumber: "sensor_2",
+			Alias:        "Moisture Sensor",
+			IsOfficial:   true,
+		},
+	}
+	if err := db.Create(&sensors).Error; err != nil {
+		return err
+	}
 
-    // Create Sensors
-    sensors := []models.Sensor{
-        {
-            CropPotID:    cropPots[0].ID,
-            SerialNumber: "sensor_1",
-            Alias:        "Temperature Sensor",
-            IsOfficial:   true,
-        },
-        {
-            CropPotID:    cropPots[1].ID,
-            SerialNumber: "sensor_2",
-            Alias:        "Moisture Sensor",
-            IsOfficial:   true,
-        },
-    }
-    if err := db.Create(&sensors).Error; err != nil {
-        return err
-    }
+	// Seed Measurements
+	measurements := []models.Measurement{
+		{
+			SensorID: sensors[0].ID,
+			Value:    22.5,
+		},
+		{
+			SensorID: sensors[1].ID,
+			Value:    65.0,
+		},
+	}
+	if err := db.Create(&measurements).Error; err != nil {
+		return err
+	}
 
-    // Create Measurements
-    measurements := []models.Measurement{
-        {
-            SensorID: sensors[0].ID,
-            Value:    22.5,
-        },
-        {
-            SensorID: sensors[1].ID,
-            Value:    65.0,
-        },
-    }
-    if err := db.Create(&measurements).Error; err != nil {
-        return err
-    }
+	// Seed Updates for Controls
+	updates := []models.Update{
+		{ControlID: controls[0].ID},
+		{ControlID: controls[1].ID},
+	}
+	if err := db.Create(&updates).Error; err != nil {
+		return err
+	}
 
-    return nil
+	subscribedEvents := []models.Sensor{
+		sensors[0],
+	}
+	webhooks := []models.Webhook{
+		{
+			CropPotID:        cropPots[0].ID,
+			EndpointUrl:      "https://webhook.site/7c7240ca-1f9d-4c84-b19e-2419c386d715",
+			SubscribedEvents: subscribedEvents,
+		},
+	}
+	if err := db.Create(&webhooks).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {

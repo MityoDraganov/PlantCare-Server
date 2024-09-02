@@ -170,9 +170,13 @@ func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error deleting webhook", http.StatusInternalServerError)
 		return
 	}
-
-	// Successfully deleted, return a 204 status (No Content)
-	w.WriteHeader(http.StatusNoContent)
+	
+	// Set the response header and encode the updated webhook object
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(webhook); err != nil {
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func findWebhookById(id string) (*models.Webhook, error) {
