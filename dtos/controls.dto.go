@@ -26,6 +26,6 @@ type ControlRequestDto struct {
 	OnCondition  float32 `json:"onCondition"`
 	OffCondition float32 `json:"offCondition"`
 
-	ActivePeriod models.ActivePeriod `json:"activePeriod"`
+	ActivePeriod ActivePeriod `json:"activePeriod"`
 }
 

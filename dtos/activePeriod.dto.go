@@ -1,9 +1,7 @@
 package dtos
 
-import "time"
-
 type ActivePeriod struct {
-	ID uint `json:"id"`
-	Start time.Time `json:"start"`
-	End   time.Time `json:"end"`
+	ID    uint   `json:"id"`
+	Start string `json:"start"`
+	End   string `json:"end"`
 }

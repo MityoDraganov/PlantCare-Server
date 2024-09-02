@@ -63,14 +63,24 @@ func SeedDatabase(db *gorm.DB) error {
 
 	// Seed Controls
 	controls := []models.Control{
-		{CropPotID: cropPots[0].ID, SerialNumber: "ctrl_1", Alias: "Water Pump", ActivePeriod: models.ActivePeriod{
-			Start: time.Now(),
-			End:   <-time.After(60 * 5),
-		}},
-		{CropPotID: cropPots[1].ID, SerialNumber: "ctrl_2", Alias: "Light Switch", ActivePeriod: models.ActivePeriod{
-			Start: time.Now(),
-			End:   <-time.After(60 * 5),
-		}},
+		{
+			CropPotID:   cropPots[0].ID,
+			SerialNumber: "ctrl_1",
+			Alias:       "Water Pump",
+			ActivePeriod: models.ActivePeriod{
+				Start:     time.Duration(8)*time.Hour + time.Duration(30)*time.Minute, // 8:30 AM
+				End:       time.Duration(17)*time.Hour, // 5:00 PM
+			},
+		},
+		{
+			CropPotID:   cropPots[1].ID,
+			SerialNumber: "ctrl_2",
+			Alias:       "Light Switch",
+			ActivePeriod: models.ActivePeriod{
+				Start:     time.Duration(6)*time.Hour, // 6:00 AM
+			End:       time.Duration(20)*time.Hour, // 8:00 PM
+			},
+		},
 	}
 	if err := db.Create(&controls).Error; err != nil {
 		return err

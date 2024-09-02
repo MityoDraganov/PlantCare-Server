@@ -9,6 +9,6 @@ import (
 type ActivePeriod struct {
 	gorm.Model
 	ControlID uint
-	Start time.Time `gorm:"type:time"`
-	End   time.Time `gorm:"type:time"`
+	Start time.Duration
+	End   time.Duration
 }
