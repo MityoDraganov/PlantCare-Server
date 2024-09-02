@@ -16,5 +16,5 @@ type Control struct {
 	OnCondition float32
 	OffCondition float32
 
-	ActivePeriod *ActivePeriod `gorm:"foreignKey:ControlID"`
+	ActivePeriod ActivePeriod
 }

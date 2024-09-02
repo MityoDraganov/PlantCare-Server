@@ -3,7 +3,7 @@ package dtos
 import "time"
 
 type ActivePeriod struct {
-	ControlID uint `json:"controlId"`
+	ID uint `json:"id"`
 	Start time.Time `json:"start"`
-	End time.Time `json:"end"`
+	End   time.Time `json:"end"`
 }

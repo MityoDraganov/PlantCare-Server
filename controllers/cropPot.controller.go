@@ -33,22 +33,24 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 	var cropPotResponses []dtos.CropPotResponse
 	for _, cropPot := range cropPots {
 		var controlsResponse []dtos.ControlDto
+
 		for _, control := range cropPot.Controls {
+			activePeriod := dtos.ActivePeriod{
+				ID: control.ActivePeriod.ID,
+				Start: control.ActivePeriod.Start,
+				End: control.ActivePeriod.End,
+			}
 			controlsResponse = append(controlsResponse, dtos.ControlDto{
-				ID: control.ID,
+				ID:           control.ID,
 				SerialNumber: control.SerialNumber,
 				Alias:        control.Alias,
-				Description:  control.Description,
+				Description:  utils.CoalesceString(control.Description),
 				Updates:      control.Updates,
 				IsOfficial:   true,
 
-				OnCondition: control.OnCondition,
+				OnCondition:  control.OnCondition,
 				OffCondition: control.OffCondition,
-				ActivePeriod: dtos.ActivePeriod{
-					ControlID: control.ID,
-					Start: control.ActivePeriod.Start,
-					End: control.ActivePeriod.End,
-				},
+				ActivePeriod: activePeriod,
 			})
 		}
 
@@ -59,7 +61,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 				ID:           sensorData.ID,
 				SerialNumber: sensorData.SerialNumber,
 				Measurements: sensorData.Measurements,
-				Description:  sensorData.Description,
+				Description:  utils.CoalesceString(sensorData.Description),
 				Alias:        sensorData.Alias,
 				IsOfficial:   sensorData.IsOfficial,
 			})
@@ -76,7 +78,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 				subscribedEvent := dtos.SensorDto{
 					SerialNumber: event.SerialNumber,
 					Alias:        event.Alias,
-					Description:  event.Description,
+					Description:  utils.CoalesceString(event.Description),
 				}
 
 				subscribedEvents = append(subscribedEvents, subscribedEvent)
@@ -85,7 +87,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 			webhookResponse := dtos.WebhookResponse{
 				ID:               webhook.ID,
 				EndpointUrl:      webhook.EndpointUrl,
-				Description:      webhook.Description,
+				Description:      utils.CoalesceString(webhook.Description),
 				SubscribedEvents: subscribedEvents, // Will be an empty slice if no events
 			}
 
@@ -93,12 +95,12 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 		}
 
 		cropPotResponse := dtos.CropPotResponse{
-			ID:            cropPot.ID,
-			Alias:         cropPot.Alias,
-			IsArchived:    cropPot.IsArchived,
-			Controls:      controlsResponse,
-			Sensors:       sensorDataResponses,
-			Webhooks:      webhookResponses,
+			ID:         cropPot.ID,
+			Alias:      cropPot.Alias,
+			IsArchived: cropPot.IsArchived,
+			Controls:   controlsResponse,
+			Sensors:    sensorDataResponses,
+			Webhooks:   webhookResponses,
 		}
 		cropPotResponses = append(cropPotResponses, cropPotResponse)
 	}
@@ -231,6 +233,8 @@ func findPotsByUserId(userId string) ([]models.CropPot, error) {
 		Preload("Sensors").
 		Preload("Sensors.Measurements").
 		Preload("Controls").
+		Preload("Controls.ActivePeriod").
+		Preload("Controls.Updates").
 		Preload("Webhooks").
 		Preload("Webhooks.SubscribedEvents").
 		Where("clerk_user_id = ?", userId).
@@ -242,3 +246,4 @@ func findPotsByUserId(userId string) ([]models.CropPot, error) {
 
 	return cropPots, nil
 }
+
