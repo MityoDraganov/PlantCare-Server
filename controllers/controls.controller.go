@@ -115,7 +115,8 @@ func UpdateControls(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK)	
+	json.NewEncoder(w).Encode(controlDtos)
 }
 
 // findActivePeriodById fetches an ActivePeriod by its ID
