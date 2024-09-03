@@ -45,6 +45,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
                 ID:    control.ActivePeriod.ID,
                 Start: startStr,
                 End:   endStr,
+				Days: utils.ParseBitmask(control.ActivePeriod.Days),
             }
             controlsResponse = append(controlsResponse, dtos.ControlDto{
                 ID:           control.ID,

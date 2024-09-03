@@ -71,7 +71,7 @@ func main() {
 
 	// --CONTROLS--
 	controls := api.PathPrefix("/controls").Subrouter()
-	controls.HandleFunc("", controllers.UpdateControllSetting).Methods("PUT")
+	controls.HandleFunc("", controllers.UpdateControls).Methods("PUT")
 
 	// --WEBHOOKS--
 	webhooks := api.PathPrefix("/webhooks").Subrouter()
