@@ -70,7 +70,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
                 Measurements: sensorData.Measurements,
                 Description:  utils.CoalesceString(sensorData.Description),
                 Alias:        sensorData.Alias,
-                IsOfficial:   sensorData.IsOfficial,
+				MeasuremntInterval: durationToTimeString(sensorData.MeasuremntInterval),
             })
         }
 
@@ -236,7 +236,7 @@ func FindCropPotById(id string) (*models.CropPot, error) {
 
 func FindPotByToken(token string) (*models.CropPot, error) {
 	var cropPot models.CropPot
-	if err := initPackage.Db.Preload("ControlSettings").Where("token = ?", token).First(&cropPot).Error; err != nil {
+	if err := initPackage.Db.Preload("Controls").Where("token = ?", token).First(&cropPot).Error; err != nil {
 		return nil, err
 	}
 	return &cropPot, nil

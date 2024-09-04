@@ -93,12 +93,21 @@ func SeedDatabase(db *gorm.DB) error {
 			SerialNumber: "sensor_1",
 			Alias:        "Temperature Sensor",
 			IsOfficial:   true,
+			MeasuremntInterval: time.Hour,
+		},
+		{
+			CropPotID:    cropPots[0].ID,
+			SerialNumber: "sensor_2",
+			Alias:        "Moisture Sensor",
+			IsOfficial:   true,
+			MeasuremntInterval: 2 * time.Hour,
 		},
 		{
 			CropPotID:    cropPots[1].ID,
 			SerialNumber: "sensor_2",
 			Alias:        "Moisture Sensor",
 			IsOfficial:   true,
+			MeasuremntInterval: time.Hour,
 		},
 	}
 	if err := db.Create(&sensors).Error; err != nil {

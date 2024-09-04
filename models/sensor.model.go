@@ -1,6 +1,10 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Sensor struct {
 	gorm.Model
@@ -8,6 +12,7 @@ type Sensor struct {
 	SerialNumber string
 	Alias string
 	Description *string
+	MeasuremntInterval time.Duration
 
 	Measurements []Measurement
 	IsOfficial bool
