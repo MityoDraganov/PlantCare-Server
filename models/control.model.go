@@ -13,8 +13,7 @@ type Control struct {
 	IsOfficial bool
 
 	Updates    []Update
-	OnCondition float32
-	OffCondition float32
 
+	Condition *Condition
 	ActivePeriod ActivePeriod
 }

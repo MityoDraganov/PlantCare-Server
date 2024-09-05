@@ -53,7 +53,7 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 
     for _, webhook := range webhooks {
         payload := wsDtos.WebhookPayload{
-            Sensor: dtos.SensorDto{
+            Sensor: dtos.SensorResponseDto{
                 SerialNumber: sensorDbObject.SerialNumber,
                 Alias: sensorDbObject.Alias,
                 Description: sensorDbObject.Description,

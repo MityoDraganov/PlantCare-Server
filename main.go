@@ -44,13 +44,13 @@ func main() {
 	err := db.AutoMigrate(
 		&models.User{},
 		&models.CropPot{},
-		&models.Sensor{}, 
-		&models.Measurement{}, 
-		&models.Control{}, 
-		&models.Webhook{}, 
+		&models.Sensor{},
+		&models.Measurement{},
+		&models.Control{},
+		&models.Webhook{},
 		&models.Update{},
 		&models.ActivePeriod{},
-		
+		&models.Condition{},
 	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
@@ -72,6 +72,10 @@ func main() {
 	// --CONTROLS--
 	controls := api.PathPrefix("/controls").Subrouter()
 	controls.HandleFunc("", controllers.UpdateControls).Methods("PUT")
+
+	// --SENSORS--
+	sensors := api.PathPrefix("/sensors").Subrouter()
+	sensors.HandleFunc("/{sensorId}", controllers.UpdateSensor).Methods("PUT")
 
 	// --WEBHOOKS--
 	webhooks := api.PathPrefix("/webhooks").Subrouter()

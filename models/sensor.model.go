@@ -8,12 +8,12 @@ import (
 
 type Sensor struct {
 	gorm.Model
-	CropPotID uint
-	SerialNumber string
-	Alias string
-	Description *string
-	MeasuremntInterval time.Duration
+	CropPotID          uint
+	SerialNumber       string
+	Alias              string        `json:"alias"`
+	Description        *string       `json:"description"`
+	MeasuremntInterval time.Duration `json:"measuremntInterval"`
 
 	Measurements []Measurement
-	IsOfficial bool
+	IsOfficial   bool
 }

@@ -27,6 +27,7 @@ func DropAllTables(db *gorm.DB) error {
 		&models.Webhook{}, 
 		&models.Update{},
 		&models.ActivePeriod{},
+		&models.Condition{},
 	}
 
 	for _, model := range modelsToDrop {

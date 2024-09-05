@@ -55,10 +55,10 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var subscribedEventsDto []dtos.SensorDto
+	var subscribedEventsDto []dtos.SensorResponseDto
 
 	for _, event := range webhook.SubscribedEvents {
-		subscribedEvent := dtos.SensorDto{
+		subscribedEvent := dtos.SensorResponseDto{
 			SerialNumber: event.SerialNumber,
 			Alias:        event.Alias,
 			Description:  event.Description,

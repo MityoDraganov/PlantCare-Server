@@ -5,7 +5,7 @@ type CropPotResponse struct {
 	Alias         string            `json:"alias"`
 	IsArchived    bool              `json:"isArchived"`
 	Controls      []ControlDto     `json:"controls"`
-	Sensors       []SensorDto       `json:"sensors"`
+	Sensors       []SensorResponseDto       `json:"sensors"`
 	Webhooks      []WebhookResponse `json:"webhooks"`
 }
 

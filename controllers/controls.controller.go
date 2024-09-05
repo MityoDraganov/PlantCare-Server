@@ -85,12 +85,25 @@ func UpdateControls(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+
+		sensor, err := findSensorById(string(controlDto.Condition.DependentSensor.ID))
+		if err != nil {
+			utils.JsonError(w, fmt.Sprintf("Invalid end time format: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		conditionUpdate := models.Condition{
+			On: controlDto.Condition.On,
+			Off: controlDto.Condition.Off,
+			DependentSensor: sensor,
+		}
+	
+
 		// Update main control settings
 		controlUpdate := models.Control{
 			Alias:        controlDto.Alias,
 			Description:  controlDto.Description,
-			OnCondition:  controlDto.OnCondition,
-			OffCondition: controlDto.OffCondition,
+			Condition: 	 &conditionUpdate,
 		}
 
 		controlSettingsDbObject, err := findControllSettingById(controlDto.ID)

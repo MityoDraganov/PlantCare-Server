@@ -55,22 +55,23 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
                 Updates:      control.Updates,
                 IsOfficial:   true,
 
-                OnCondition:  control.OnCondition,
-                OffCondition: control.OffCondition,
+
+                //OnCondition:  control.OnCondition,
+                //OffCondition: control.OffCondition,
                 ActivePeriod: activePeriod,
             })
         }
 
         // Map SensorData
-        var sensorDataResponses []dtos.SensorDto
+        var sensorDataResponses []dtos.SensorResponseDto
         for _, sensorData := range cropPot.Sensors {
-            sensorDataResponses = append(sensorDataResponses, dtos.SensorDto{
+            sensorDataResponses = append(sensorDataResponses, dtos.SensorResponseDto{
                 ID:           sensorData.ID,
                 SerialNumber: sensorData.SerialNumber,
                 Measurements: sensorData.Measurements,
                 Description:  utils.CoalesceString(sensorData.Description),
                 Alias:        sensorData.Alias,
-				MeasuremntInterval: durationToTimeString(sensorData.MeasuremntInterval),
+				MeasurementInterval: durationToTimeString(sensorData.MeasuremntInterval),
             })
         }
 
@@ -78,11 +79,11 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 
         for _, webhook := range cropPot.Webhooks {
             // Initialize subscribedEvents as an empty slice
-            subscribedEvents := []dtos.SensorDto{}
+            subscribedEvents := []dtos.SensorResponseDto{}
 
             // Populate subscribedEvents if there are any
             for _, event := range webhook.SubscribedEvents {
-                subscribedEvent := dtos.SensorDto{
+                subscribedEvent := dtos.SensorResponseDto{
                     SerialNumber: event.SerialNumber,
                     Alias:        event.Alias,
                     Description:  utils.CoalesceString(event.Description),
