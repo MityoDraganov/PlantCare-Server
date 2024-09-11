@@ -1,8 +1,9 @@
 package connectionManager
 
 import (
-	"sync"
 	"PlantCare/websocket/wsTypes"
+	"fmt"
+	"sync"
 )
 
 type ConnectionManager struct {
@@ -10,14 +11,21 @@ type ConnectionManager struct {
 	connections map[string]*wsTypes.Connection
 }
 
-func NewConnectionManager() *ConnectionManager {
-	return &ConnectionManager{
-		connections: make(map[string]*wsTypes.Connection),
+var instance *ConnectionManager
+
+func GetInstance() *ConnectionManager {
+	if instance == nil {
+		instance = &ConnectionManager{
+			connections: make(map[string]*wsTypes.Connection),
+		}
 	}
+	return instance
 }
 
 // AddConnection adds a connection to the manager with the given pot ID.
 func (cm *ConnectionManager) AddConnection(potID string, conn *wsTypes.Connection) {
+	fmt.Println("potID")
+	fmt.Println(potID)
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	cm.connections[potID] = conn

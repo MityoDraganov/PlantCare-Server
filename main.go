@@ -46,11 +46,12 @@ func main() {
 		&models.CropPot{},
 		&models.Sensor{},
 		&models.Measurement{},
+		&models.Condition{},
 		&models.Control{},
 		&models.Webhook{},
 		&models.Update{},
 		&models.ActivePeriod{},
-		&models.Condition{},
+		&models.Driver{},
 	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
@@ -84,6 +85,11 @@ func main() {
 	webhooks.HandleFunc("/{potId}", controllers.AddWebhook).Methods("POST")
 	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.UpdateWebhook).Methods("PUT")
 	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.DeleteWebhook).Methods("DELETE")
+
+	// --DRIVERS--
+	drivers := api.PathPrefix("/drivers").Subrouter()
+	drivers.Use(middlewears.PotMiddleware)
+	drivers.HandleFunc("/{potId}", controllers.UploadDriver).Methods("POST")
 
 	// --ADMIN ACTIONS--
 	adminR := r.NewRoute().Subrouter()

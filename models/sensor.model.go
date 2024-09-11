@@ -8,8 +8,10 @@ import (
 
 type Sensor struct {
 	gorm.Model
-	CropPotID          uint
-	SerialNumber       string
+	CropPotID    uint
+	SerialNumber string
+	Driver       Driver
+
 	Alias              string        `json:"alias"`
 	Description        *string       `json:"description"`
 	MeasuremntInterval time.Duration `json:"measuremntInterval"`

@@ -6,7 +6,8 @@ type Condition struct {
 	gorm.Model
 	ControlID uint
 
-	DependentSensor *Sensor
+	DependentSensorID *uint
+	DependentSensor   *Sensor    `gorm:"foreignKey:DependentSensorID"`
 	On float32
 	Off float32
 }

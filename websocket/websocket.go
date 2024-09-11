@@ -70,3 +70,4 @@ func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsu
 		wsutils.SendErrorResponse(connection, http.StatusBadRequest)
 	}
 }
+

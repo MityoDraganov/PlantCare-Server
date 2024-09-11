@@ -237,7 +237,7 @@ func FindCropPotById(id string) (*models.CropPot, error) {
 
 func FindPotByToken(token string) (*models.CropPot, error) {
 	var cropPot models.CropPot
-	if err := initPackage.Db.Preload("Controls").Where("token = ?", token).First(&cropPot).Error; err != nil {
+	if err := initPackage.Db.Where("token = ?", token).First(&cropPot).Error; err != nil {
 		return nil, err
 	}
 	return &cropPot, nil

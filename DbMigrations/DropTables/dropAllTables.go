@@ -28,6 +28,7 @@ func DropAllTables(db *gorm.DB) error {
 		&models.Update{},
 		&models.ActivePeriod{},
 		&models.Condition{},
+		&models.Driver{},
 	}
 
 	for _, model := range modelsToDrop {

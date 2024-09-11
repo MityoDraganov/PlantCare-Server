@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"PlantCare/controllers"
 	"PlantCare/utils"
@@ -22,7 +23,7 @@ var (
 			return true
 		},
 	}
-	connManager = connectionManager.NewConnectionManager() // Initialize the connection manager
+	connManager = connectionManager.GetInstance() // Initialize the connection manager
 )
 
 // Middleware handles authentication, connection, and logging in a single function.
@@ -34,6 +35,8 @@ func Middleware(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println(token)
+
 	// Authenticate using the token
 	cropPotDbObject, err := controllers.FindPotByToken(token)
 	if err != nil {
@@ -41,8 +44,9 @@ func Middleware(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Store the pot ID in the context
-	ctx := context.WithValue(r.Context(), wsTypes.CropPotIDKey, cropPotDbObject.ID)
+	potIDStr := strconv.FormatUint(uint64(cropPotDbObject.ID), 10)
+
+	ctx := context.WithValue(r.Context(), wsTypes.CropPotIDKey, potIDStr)
 	r = r.WithContext(ctx)
 
 	// Upgrade the HTTP connection to a WebSocket connection
@@ -58,7 +62,7 @@ func Middleware(w http.ResponseWriter, r *http.Request) {
 		Context: r.Context(),
 	}
 
-	connManager.AddConnection(string(cropPotDbObject.ID), connection)
+	connManager.AddConnection(potIDStr, connection)
 	defer connManager.RemoveConnection(string(cropPotDbObject.ID))
 
 	wsutils.SendValidRequest(connection, cropPotDbObject)
