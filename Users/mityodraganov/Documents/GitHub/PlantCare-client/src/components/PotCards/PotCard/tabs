@@ -1,0 +1,11 @@
+import React from "react";
+
+    function Tabs({}) {
+      return (<div className="md:border-r h-full md:border-gray-300 mdpr-6">
+				<div className="h-max">
+					<Chart sensors={pot.sensors} />
+				</div>
+			</div>);
+    }
+  
+  

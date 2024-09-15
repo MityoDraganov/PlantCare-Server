@@ -15,6 +15,7 @@ type SensorResponseDto struct {
 }
 
 type SensorRequestDto struct {
+	ID uint `json:"id"`
 	Alias        string `json:"alias"`
 	Description  *string `json:"description"`
 	MeasurementInterval string `json:"measurementInterval"`

@@ -56,10 +56,13 @@ func Middleware(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	remoteIP := r.RemoteAddr
+
 	connection := &wsTypes.Connection{
 		Conn:    conn,
 		Send:    make(chan []byte),
 		Context: r.Context(),
+		IP:      remoteIP,
 	}
 
 	connManager.AddConnection(potIDStr, connection)
@@ -70,7 +73,7 @@ func Middleware(w http.ResponseWriter, r *http.Request) {
 	go HandleMessages(connection)
 	go wsutils.SendMessages(connection)
 
-	fmt.Println("New WebSocket connection established")
+	fmt.Printf("New WebSocket connection established from IP: %s\n", remoteIP)
 
 }
 

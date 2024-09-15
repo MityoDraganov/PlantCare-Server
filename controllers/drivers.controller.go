@@ -3,12 +3,14 @@ package controllers
 import (
 	"PlantCare/utils" // Make sure to import the utils package
 	"PlantCare/websocket/connectionManager"
-	wsutils "PlantCare/websocket/wsUtils"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -97,40 +99,47 @@ func UploadDriver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build the project using PlatformIO
-	if err := utils.BuildProject(repoExtractDir); err != nil {
-		http.Error(w, "Failed to build project", http.StatusInternalServerError)
-		return
-	}
 
-	// Locate the compiled firmware
-	// Locate the compiled firmware
-	firmwarePath := filepath.Join(repoExtractDir, "PlantCare-esp32-main", ".pio", "build", "esp32dev", "firmware.bin")
-
-	// Debugging: Print the firmware path for confirmation
-	fmt.Printf("Looking for firmware at: %s\n", firmwarePath)
-
-	// Check if the file exists before reading
-	if _, err := os.Stat(firmwarePath); os.IsNotExist(err) {
-		http.Error(w, "Compiled firmware not found", http.StatusInternalServerError)
-		return
-	}
-
-	// Read the compiled firmware
-	firmwareData, err := os.ReadFile(firmwarePath)
-	if err != nil {
-		http.Error(w, "Failed to read compiled firmware", http.StatusInternalServerError)
-		return
-	}
 
 	connection, ok := connManager.GetConnection(potIdStr)
 	if !ok {
 		http.Error(w, "Target connection not found", http.StatusNotFound)
 		return
 	}
-	wsutils.SendFirmwareUpdate(connection, firmwareData)
+	if err := uploadFirmwareOTA(repoExtractDir, connection.IP); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to upload firmware: %v", err), http.StatusInternalServerError)
+		return
+	}
 
 	// Respond with success
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "Driver uploaded and processed successfully!")
+}
+
+func uploadFirmwareOTA(repoExtractDir string, esp32IP string) error {
+	firmwarePath := filepath.Join(repoExtractDir, "PlantCare-esp32-main")
+	fmt.Println(firmwarePath)
+	// Extract the first part of the IP address
+	ipParts := strings.Split(esp32IP, ":")
+
+	// Hardcode the port to 8266
+	otaAddress := ipParts[0] + ":8266"
+	fmt.Println(otaAddress)
+
+	// Prepare the PlatformIO OTA command
+	cmd := exec.Command("pio", "run", "-e", "esp32dev_ota", "--target", "upload", "-v")
+	cmd.Dir = firmwarePath
+
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errOut
+
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("OTA upload failed: %s\nstdout: %s\nstderr: %s", err.Error(), out.String(), errOut.String())
+	}
+
+	fmt.Printf("OTA upload output: %s\n", out.String())
+	return nil
 }

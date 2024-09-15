@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
+	"reflect"
 
 	"PlantCare/dtos"
 	"PlantCare/initPackage"
@@ -17,113 +17,23 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-
 func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
-    claims, ok := clerk.SessionClaimsFromContext(r.Context())
-    if !ok {
-        w.WriteHeader(http.StatusUnauthorized)
-        w.Write([]byte(`{"error": "unauthorized"}`))
-        return
-    }
-    cropPots, err := findPotsByUserId(claims.Subject)
-    if err != nil {
-        fmt.Println("Error extracting session claims")
-        utils.JsonError(w, "Pots not found!", http.StatusNotFound)
-        return
-    }
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "unauthorized"}`))
+		return
+	}
+	cropPots, err := findPotsByUserId(claims.Subject)
+	if err != nil {
+		fmt.Println("Error extracting session claims")
+	}
 
-    var cropPotResponses []dtos.CropPotResponse
-    for _, cropPot := range cropPots {
-        var controlsResponse []dtos.ControlDto
+	cropPotResponses := ToCropPotResponse(cropPots)
 
-        for _, control := range cropPot.Controls {
-            // Convert duration to string in format "15:04"
-            startStr := durationToTimeString(control.ActivePeriod.Start)
-            endStr := durationToTimeString(control.ActivePeriod.End)
-
-            activePeriod := dtos.ActivePeriod{
-                ID:    control.ActivePeriod.ID,
-                Start: startStr,
-                End:   endStr,
-				Days: utils.ParseBitmask(control.ActivePeriod.Days),
-            }
-            controlsResponse = append(controlsResponse, dtos.ControlDto{
-                ID:           control.ID,
-                SerialNumber: control.SerialNumber,
-                Alias:        control.Alias,
-                Description:  utils.CoalesceString(control.Description),
-                Updates:      control.Updates,
-                IsOfficial:   true,
-
-
-                //OnCondition:  control.OnCondition,
-                //OffCondition: control.OffCondition,
-                ActivePeriod: activePeriod,
-            })
-        }
-
-        // Map SensorData
-        var sensorDataResponses []dtos.SensorResponseDto
-        for _, sensorData := range cropPot.Sensors {
-            sensorDataResponses = append(sensorDataResponses, dtos.SensorResponseDto{
-                ID:           sensorData.ID,
-                SerialNumber: sensorData.SerialNumber,
-                Measurements: sensorData.Measurements,
-                Description:  utils.CoalesceString(sensorData.Description),
-                Alias:        sensorData.Alias,
-				MeasurementInterval: durationToTimeString(sensorData.MeasuremntInterval),
-            })
-        }
-
-        webhookResponses := []dtos.WebhookResponse{}
-
-        for _, webhook := range cropPot.Webhooks {
-            // Initialize subscribedEvents as an empty slice
-            subscribedEvents := []dtos.SensorResponseDto{}
-
-            // Populate subscribedEvents if there are any
-            for _, event := range webhook.SubscribedEvents {
-                subscribedEvent := dtos.SensorResponseDto{
-                    SerialNumber: event.SerialNumber,
-                    Alias:        event.Alias,
-                    Description:  utils.CoalesceString(event.Description),
-                }
-
-                subscribedEvents = append(subscribedEvents, subscribedEvent)
-            }
-
-            webhookResponse := dtos.WebhookResponse{
-                ID:               webhook.ID,
-                EndpointUrl:      webhook.EndpointUrl,
-                Description:      utils.CoalesceString(webhook.Description),
-                SubscribedEvents: subscribedEvents, // Will be an empty slice if no events
-            }
-
-            webhookResponses = append(webhookResponses, webhookResponse)
-        }
-
-        cropPotResponse := dtos.CropPotResponse{
-            ID:         cropPot.ID,
-            Alias:      cropPot.Alias,
-            IsArchived: cropPot.IsArchived,
-            Controls:   controlsResponse,
-            Sensors:    sensorDataResponses,
-            Webhooks:   webhookResponses,
-        }
-        cropPotResponses = append(cropPotResponses, cropPotResponse)
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(cropPotResponses)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(cropPotResponses)
 }
-
-// Helper function to convert duration to time string in format "15:04"
-func durationToTimeString(d time.Duration) string {
-    hours := int(d / time.Hour)
-    minutes := int((d % time.Hour) / time.Minute)
-    return fmt.Sprintf("%02d:%02d", hours, minutes)
-}
-
 
 func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -159,14 +69,14 @@ func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
-	var cropPotDto dtos.CreateCropPot
+	var cropPotDto dtos.CropPotRequest
 	err := json.NewDecoder(r.Body).Decode(&cropPotDto)
 	if err != nil {
 		utils.JsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	params := mux.Vars(r)
-	id := params["id"]
+	id := params["potId"]
 
 	cropPotDBObject, err := FindCropPotById(id)
 	if err != nil {
@@ -251,6 +161,8 @@ func findPotsByUserId(userId string) ([]models.CropPot, error) {
 		Preload("Controls").
 		Preload("Controls.ActivePeriod").
 		Preload("Controls.Updates").
+		Preload("Controls.Condition").
+		Preload("Controls.Condition.DependentSensor").
 		Preload("Webhooks").
 		Preload("Webhooks.SubscribedEvents").
 		Where("clerk_user_id = ?", userId).
@@ -263,3 +175,29 @@ func findPotsByUserId(userId string) ([]models.CropPot, error) {
 	return cropPots, nil
 }
 
+func ToCropPotResponse(data interface{}) []dtos.CropPotResponse {
+	val := reflect.ValueOf(data)
+	if val.Kind() == reflect.Slice {
+		var dtosArray []dtos.CropPotResponse
+		for i := 0; i < val.Len(); i++ {
+			cropPot := val.Index(i).Interface().(models.CropPot)
+			dtosArray = append(dtosArray, ToCropPotResponseDTO(cropPot))
+		}
+		return dtosArray
+	} else if val.Kind() == reflect.Struct {
+		cropPot := val.Interface().(models.CropPot)
+		return []dtos.CropPotResponse{ToCropPotResponseDTO(cropPot)}
+	}
+	return nil
+}
+
+func ToCropPotResponseDTO(cropPot models.CropPot) dtos.CropPotResponse {
+	return dtos.CropPotResponse{
+		ID:         cropPot.ID,
+		Alias:      cropPot.Alias,
+		IsArchived: cropPot.IsArchived,
+		Controls:   ToControlsDTO(cropPot.Controls),
+		Sensors:    ToSensorsDTO(cropPot.Sensors),
+		Webhooks:   ToWebhooksDTO(cropPot.Webhooks),
+	}
+}

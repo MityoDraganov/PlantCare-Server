@@ -21,7 +21,7 @@ type ControlRequestDto struct {
 	Alias        string  `json:"alias"`
 	Description  *string `json:"description"`
 
-	Condition *ConditionDto `json:"condition"`
+	Condition ConditionRequestDto `json:"condition"`
 
 	ActivePeriod ActivePeriod `json:"activePeriod"`
 }

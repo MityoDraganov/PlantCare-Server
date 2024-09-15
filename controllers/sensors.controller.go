@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -26,9 +27,14 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 
 	// Extract the webhook ID from the URL parameters
 	params := mux.Vars(r)
-	id := params["sensorId"]
+	stringId := params["sensorId"]
+	id, err := strconv.ParseUint(stringId, 10, 32)
+	if err != nil {
+		utils.JsonError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	sensorDbObject, err := findSensorById(id)
+	sensorDbObject, err := findSensorById(uint(id))
 	if err != nil {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -75,7 +81,7 @@ func FindSensorBySerialNum(serialNumber string) (*models.Sensor, error) {
 	return &sensorDbObject, nil
 }
 
-func findSensorById(id string) (*models.Sensor, error) {
+func findSensorById(id uint) (*models.Sensor, error) {
 
 	var sensor models.Sensor
 	result := initPackage.Db.First(&sensor, "id = ?", id)
@@ -84,3 +90,35 @@ func findSensorById(id string) (*models.Sensor, error) {
 	}
 	return &sensor, nil
 }
+
+// Maps a single Sensor to SensorResponseDto
+func MapSensorToDTO(sensor models.Sensor) dtos.SensorResponseDto {
+	return dtos.SensorResponseDto{
+		ID:                  sensor.ID,
+		SerialNumber:        sensor.SerialNumber,
+		Alias:               sensor.Alias,
+		Description:         sensor.Description,
+		MeasurementInterval: utils.DurationToTimeString(sensor.MeasuremntInterval),
+		Measurements:        sensor.Measurements,
+	}
+}
+
+// Converts a single Sensor or a slice of Sensors to a slice of SensorResponseDto
+func ToSensorsDTO(input interface{}) []dtos.SensorResponseDto {
+	switch v := input.(type) {
+	case models.Sensor:
+		// If it's a single sensor, wrap it in a slice
+		return []dtos.SensorResponseDto{MapSensorToDTO(v)}
+	case []models.Sensor:
+		// If it's a slice of sensors, map each sensor to SensorResponseDto
+		sensorDTOs := make([]dtos.SensorResponseDto, len(v))
+		for i, sensor := range v {
+			sensorDTOs[i] = MapSensorToDTO(sensor)
+		}
+		return sensorDTOs
+	default:
+		// Handle unexpected types by returning an empty slice
+		return []dtos.SensorResponseDto{}
+	}
+}
+

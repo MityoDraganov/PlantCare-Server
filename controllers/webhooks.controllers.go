@@ -195,3 +195,45 @@ func GetSubscribedWebhooksForSensor(sensorID uint) ([]models.Webhook, error) {
 		Find(&webhooks).Error
 	return webhooks, err
 }
+
+// Maps a single Webhook to WebhookResponse DTO
+func mapWebhookToDTO(webhook models.Webhook) dtos.WebhookResponse {
+	subscribedEvents := []dtos.SensorResponseDto{}
+
+	// Populate subscribedEvents if there are any
+	for _, event := range webhook.SubscribedEvents {
+		subscribedEvent := dtos.SensorResponseDto{
+			SerialNumber: event.SerialNumber,
+			Alias:        event.Alias,
+			Description:  utils.CoalesceString(event.Description),
+		}
+		subscribedEvents = append(subscribedEvents, subscribedEvent)
+	}
+
+	return dtos.WebhookResponse{
+		ID:               webhook.ID,
+		EndpointUrl:      webhook.EndpointUrl,
+		Description:      utils.CoalesceString(webhook.Description),
+		SubscribedEvents: subscribedEvents, // Empty slice if no events
+	}
+}
+
+
+func ToWebhooksDTO(input interface{}) []dtos.WebhookResponse {
+	switch v := input.(type) {
+	case models.Webhook:
+		// If it's a single webhook, wrap it in a slice
+		return []dtos.WebhookResponse{mapWebhookToDTO(v)}
+	case []models.Webhook:
+		// If it's a slice of webhooks, map each webhook to WebhookResponse
+		webhookDTOs := make([]dtos.WebhookResponse, len(v))
+		for i, webhook := range v {
+			webhookDTOs[i] = mapWebhookToDTO(webhook)
+		}
+		return webhookDTOs
+	default:
+		// Handle unexpected types by returning an empty slice
+		return []dtos.WebhookResponse{}
+	}
+}
+

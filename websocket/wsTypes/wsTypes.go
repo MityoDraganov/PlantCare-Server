@@ -8,9 +8,10 @@ import (
 )
 
 type Connection struct {
-	Conn *websocket.Conn
-	Send chan []byte
-	Context context.Context 
+	Conn    *websocket.Conn
+	Send    chan []byte
+	Context context.Context
+	IP      string
 }
 
 type Message struct {
@@ -19,13 +20,12 @@ type Message struct {
 }
 
 type WsResponse struct {
-	Ok bool
+	Ok     bool
 	Status int
-	Data interface{}
+	Data   interface{}
 }
 type SendMessagesFunc func(connection *Connection)
 
 type ContextKey string
+
 const CropPotIDKey ContextKey = "cropPotID"
-
-
