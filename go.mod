@@ -10,8 +10,10 @@ require (
 )
 
 require (
-	github.com/clerk/clerk-sdk-go/v2 v2.0.4
+	github.com/clerk/clerk-sdk-go/v2 v2.0.8
 	github.com/gorilla/websocket v1.5.3
+	github.com/joho/godotenv v1.5.1
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/cors v1.11.0
 	github.com/stretchr/testify v1.8.4
 )

@@ -45,10 +45,10 @@ func UploadDriver(w http.ResponseWriter, r *http.Request) {
 	repoExtractDir := "./extracted/repo"
 
 	// Send firmware data via WebSocket
-	connManager := connectionManager.GetInstance()
+
 
 	// Get all connections
-	connections := connManager.GetAllConnections()
+	connections := connectionManager.ConnManager.GetAllConnections()//(wsTypes.PotRole)
 
 	// Debugging: Print all connection keys (pot IDs)
 	fmt.Println("Connections keys (pot IDs):")
@@ -101,7 +101,7 @@ func UploadDriver(w http.ResponseWriter, r *http.Request) {
 
 
 
-	connection, ok := connManager.GetConnection(potIdStr)
+	connection, ok := connectionManager.ConnManager.GetConnection(potIdStr)
 	if !ok {
 		http.Error(w, "Target connection not found", http.StatusNotFound)
 		return

@@ -28,3 +28,12 @@ func ClerkUserRegister(w http.ResponseWriter, r *http.Request) {
         utils.JsonError(w, userDbObject.Error.Error(), http.StatusInternalServerError)
     }
 }
+
+
+func FindUserById(token string) (*models.User, error) {
+	var user models.User
+	if err := initPackage.Db.Where("clerk_id = ?", token).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}

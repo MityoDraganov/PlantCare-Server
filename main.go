@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 
 	"PlantCare/controllers"
+	cronjobs "PlantCare/cronJobs"
 	"PlantCare/initPackage"
 	"PlantCare/middlewears"
 	"PlantCare/models"
@@ -19,6 +21,7 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
+	"github.com/joho/godotenv"
 )
 
 func InitDB() *gorm.DB {
@@ -31,7 +34,13 @@ func InitDB() *gorm.DB {
 }
 
 func main() {
-	clerk.SetKey("sk_test_gy7eUfUIotA7K6RXGOa0VJBUclqUhHRSmOI6zqriDU")
+	cronjobs.StartCronJobs()
+	err := godotenv.Load()
+	if err != nil {
+	  log.Fatal("Error loading .env file")
+	}
+	
+	clerk.SetKey(os.Getenv(("CLERK_API_KEY")))
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api/v1").Subrouter()
 
@@ -41,7 +50,7 @@ func main() {
 	db := InitDB()
 	initPackage.SetDatabase(db)
 
-	err := db.AutoMigrate(
+	err = db.AutoMigrate(
 		&models.User{},
 		&models.CropPot{},
 		&models.Sensor{},

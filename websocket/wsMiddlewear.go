@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 
 	"PlantCare/controllers"
@@ -13,6 +14,10 @@ import (
 	"PlantCare/websocket/wsTypes"
 	"PlantCare/websocket/wsUtils"
 
+	"github.com/clerk/clerk-sdk-go/v2"
+
+	"github.com/clerk/clerk-sdk-go/v2/jwks"
+	"github.com/clerk/clerk-sdk-go/v2/jwt"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -23,7 +28,6 @@ var (
 			return true
 		},
 	}
-	connManager = connectionManager.GetInstance() // Initialize the connection manager
 )
 
 // Middleware handles authentication, connection, and logging in a single function.
@@ -58,20 +62,21 @@ func Middleware(w http.ResponseWriter, r *http.Request) {
 
 	remoteIP := r.RemoteAddr
 
-	connection := &wsTypes.Connection{
+	connection := wsTypes.Connection{
 		Conn:    conn,
 		Send:    make(chan []byte),
 		Context: r.Context(),
 		IP:      remoteIP,
+        Role: wsTypes.PotRole,
 	}
 
-	connManager.AddConnection(potIDStr, connection)
-	defer connManager.RemoveConnection(string(cropPotDbObject.ID))
+	connectionManager.ConnManager.AddConnection(potIDStr, connection)
+	defer connectionManager.ConnManager.RemoveConnection(string(cropPotDbObject.ID))
 
-	wsutils.SendValidRequest(connection, cropPotDbObject)
+	wsutils.SendValidRequest(&connection, cropPotDbObject)
 	// Start handling messages
-	go HandleMessages(connection)
-	go wsutils.SendMessages(connection)
+	go HandleMessages(&connection)
+	go wsutils.SendMessages(&connection)
 
 	fmt.Printf("New WebSocket connection established from IP: %s\n", remoteIP)
 
@@ -79,9 +84,147 @@ func Middleware(w http.ResponseWriter, r *http.Request) {
 
 func SetupWebSocketRoutes(r *mux.Router) {
 	ws := r.PathPrefix("/v1").Subrouter()
-	ws.HandleFunc("/", Middleware)
+
+    potWs := ws.PathPrefix("/pots").Subrouter()
+
+    userWs := ws.PathPrefix("/users").Subrouter()
+	potWs.HandleFunc("/", Middleware)
+
+
+    userWs.HandleFunc("/", userWsMiddlewear)
+
 }
 
+
+// JWKStore defines an interface for storing and retrieving JSON Web Keys.
+type JWKStore interface {
+	GetJWK() *clerk.JSONWebKey
+	SetJWK(*clerk.JSONWebKey)
+}
+
+// InMemoryJWKStore is a simple in-memory implementation of JWKStore.
+type InMemoryJWKStore struct {
+	jwk *clerk.JSONWebKey
+}
+
+// GetJWK retrieves the JSON Web Key.
+func (s *InMemoryJWKStore) GetJWK() *clerk.JSONWebKey {
+	return s.jwk
+}
+
+// SetJWK stores the JSON Web Key.
+func (s *InMemoryJWKStore) SetJWK(jwk *clerk.JSONWebKey) {
+	s.jwk = jwk
+}
+
+// UserWsMiddlewear verifies Clerk session tokens for WebSocket connections and extracts user ID.
+func userWsMiddlewear(w http.ResponseWriter, r *http.Request) {
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			http.Error(w, "Unauthorized: No token provided", http.StatusUnauthorized)
+			return
+		}
+
+		// Initialize JWK Store and JWKS Client
+		jwkStore := NewInMemoryJWKStore()
+		config := &clerk.ClientConfig{}
+		config.Key = clerk.String(os.Getenv(("CLERK_API_KEY")))
+		jwksClient := jwks.NewClient(config)
+
+		// Attempt to get the JSON Web Key from the store.
+		jwk := jwkStore.GetJWK()
+		if jwk == nil {
+			// Decode the session JWT to find the key ID.
+			claims, err := jwt.Decode(r.Context(), &jwt.DecodeParams{
+				Token: token,
+			})
+			if err != nil {
+				http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+				return
+			}
+
+			// Fetch the JSON Web Key from Clerk.
+			jwk, err = jwt.GetJSONWebKey(r.Context(), &jwt.GetJSONWebKeyParams{
+				KeyID:      claims.KeyID,
+				JWKSClient: jwksClient,
+			})
+			if err != nil {
+				http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+				return
+			}
+
+			// Store the JWK for future use.
+			jwkStore.SetJWK(jwk)
+		}
+
+		// Verify the session token.
+		_, err := jwt.Verify(r.Context(), &jwt.VerifyParams{
+			Token: token,
+			JWK:   jwk,
+		})
+		if err != nil {
+			http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		// Extract the user ID from the JWT token.
+		claims, err := jwt.Decode(r.Context(), &jwt.DecodeParams{
+			Token: token,
+		})
+		if err != nil {
+			http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		userID := claims.Subject
+
+        userDbObject, err := controllers.FindUserById(userID)
+        if err != nil {
+			http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+			return
+		}
+        if userDbObject == nil {
+            http.Error(w, "Unauthorized: Invalid token", http.StatusUnauthorized)
+			return
+        }
+
+
+        ctx := context.WithValue(r.Context(), wsTypes.CropPotIDKey, userID)
+        r = r.WithContext(ctx)
+    
+        // Upgrade the HTTP connection to a WebSocket connection
+        conn, err := upgrader.Upgrade(w, r, nil)
+        if err != nil {
+            fmt.Println("Error while upgrading connection:", err)
+            return
+        }
+    
+        remoteIP := r.RemoteAddr
+    
+        connection := wsTypes.Connection{
+            Conn:    conn,
+            Send:    make(chan []byte),
+            Context: r.Context(),
+            IP:      remoteIP,
+            Role: wsTypes.UserRole,
+        }
+    
+        connectionManager.ConnManager.AddConnection(userID, connection)
+        //defer connectionManager.ConnManager.RemoveConnection(string(userID))
+    
+        wsutils.SendValidRequest(&connection, userDbObject)
+        // Start handling messages
+        go HandleMessages(&connection)
+        go wsutils.SendMessages(&connection)
+    
+        fmt.Printf("New WebSocket connection established from IP: %s\n", remoteIP)
+    
+}
+
+// NewInMemoryJWKStore creates a new in-memory JWK store.
+func NewInMemoryJWKStore() *InMemoryJWKStore {
+	return &InMemoryJWKStore{}
+}
 
 func toJSON(data interface{}) json.RawMessage {
 	if data == nil {

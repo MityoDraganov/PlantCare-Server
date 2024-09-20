@@ -2,56 +2,48 @@ package connectionManager
 
 import (
 	"PlantCare/websocket/wsTypes"
-	"fmt"
 	"sync"
 )
 
+// ConnectionManager holds the WebSocket Connections
 type ConnectionManager struct {
-	mu          sync.RWMutex
-	connections map[string]*wsTypes.Connection
+	Mu          sync.RWMutex
+	Connections map[string]*wsTypes.Connection
 }
 
-var instance *ConnectionManager
-
-func GetInstance() *ConnectionManager {
-	if instance == nil {
-		instance = &ConnectionManager{
-			connections: make(map[string]*wsTypes.Connection),
-		}
-	}
-	return instance
+// Exported global instance of ConnectionManager
+var ConnManager = &ConnectionManager{
+	Connections: make(map[string]*wsTypes.Connection),
+	Mu: sync.RWMutex{},
 }
 
-// AddConnection adds a connection to the manager with the given pot ID.
-func (cm *ConnectionManager) AddConnection(potID string, conn *wsTypes.Connection) {
-	fmt.Println("potID")
-	fmt.Println(potID)
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-	cm.connections[potID] = conn
+func (cm *ConnectionManager) AddConnection(potID string, conn wsTypes.Connection) {
+	cm.Mu.Lock()
+	defer cm.Mu.Unlock()
+	cm.Connections[potID] = &conn
 }
 
-// RemoveConnection removes a connection from the manager.
+// RemoveConnection removes a WebSocket connection
 func (cm *ConnectionManager) RemoveConnection(potID string) {
-	cm.mu.Lock()
-	defer cm.mu.Unlock()
-	delete(cm.connections, potID)
+	cm.Mu.Lock()
+	defer cm.Mu.Unlock()
+	delete(cm.Connections, potID)
 }
 
-// GetConnection retrieves a connection by pot ID.
+// GetConnection retrieves a connection by pot ID
 func (cm *ConnectionManager) GetConnection(potID string) (*wsTypes.Connection, bool) {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
-	conn, ok := cm.connections[potID]
+	cm.Mu.RLock()
+	defer cm.Mu.RUnlock()
+	conn, ok := cm.Connections[potID]
 	return conn, ok
 }
 
-// GetAllConnections returns all connections.
+// GetAllConnections returns all active Connections
 func (cm *ConnectionManager) GetAllConnections() map[string]*wsTypes.Connection {
-	cm.mu.RLock()
-	defer cm.mu.RUnlock()
+	cm.Mu.RLock()
+	defer cm.Mu.RUnlock()
 	conns := make(map[string]*wsTypes.Connection)
-	for k, v := range cm.connections {
+	for k, v := range cm.Connections {
 		conns[k] = v
 	}
 	return conns

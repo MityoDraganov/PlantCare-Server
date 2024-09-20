@@ -30,7 +30,6 @@ func HandleMessages(connection *wsTypes.Connection) {
 	}
 }
 
-
 // Process the received message
 func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsutils.RateLimiter) {
 	var message wsTypes.Message
@@ -45,7 +44,7 @@ func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsu
 	handler := &eventHandlers.Handler{}
 
 	handlerValue := reflect.ValueOf(handler)
-	method := handlerValue.MethodByName(message.Event)
+	method := handlerValue.MethodByName(string(message.Event))
 
 	if method.IsValid() && method.Type().NumIn() == 2 {
 		// Pass raw message data as is
@@ -57,7 +56,7 @@ func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsu
 			// Wrap the method with rate limiting logic
 			wrappedMethod := rateLimiter.RateLimitWrapper(func(d json.RawMessage, c *wsTypes.Connection) {
 				method.Call(args)
-			}, message.Event)
+			}, string(message.Event))
 
 			// Call the wrapped method
 			wrappedMethod(data, connection)
@@ -71,3 +70,35 @@ func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsu
 	}
 }
 
+// SendMessage sends a message to the client over the WebSocket connection
+func SendMessage(connection *wsTypes.Connection, event wsTypes.Event, data interface{}) error {
+	// Convert the data to JSON
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		fmt.Println("Error marshaling data:", err)
+		return err
+	}
+
+	// Create the message
+	message := wsTypes.Message{
+		Event:     event,
+		Data:      json.RawMessage(jsonData),
+		Timestamp: time.Now(),
+	}
+
+	// Marshal the message to JSON
+	messageBytes, err := json.Marshal(message)
+	if err != nil {
+		fmt.Println("Error marshaling message:", err)
+		return err
+	}
+
+	// Send the message through the WebSocket connection
+	err = connection.Conn.WriteMessage(1, messageBytes)
+	if err != nil {
+		fmt.Println("Error while sending message:", err)
+		return err
+	}
+
+	return nil
+}
