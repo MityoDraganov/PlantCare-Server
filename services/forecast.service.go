@@ -5,34 +5,64 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"os"
+	"time"
+
+	"github.com/joho/godotenv"
 )
 
-// Fetch forecast data for the given location and number of days
-func GetWeatherForecast(apiKey string, location string, days int) (*dtos.WeatherForecast, error) {
-	// Construct the URL with placeholders
-	url := fmt.Sprintf("http://api.weatherapi.com/v1/forecast.json?key=%s&q=%s&days=%d&aqi=no&alerts=no", apiKey, location, days)
+// Fetch historical weather data for the given location and date
+func getHistoricalWeather(apiKey string, location string, date time.Time) (*dtos.ForecastDTO, error) {
+	url := fmt.Sprintf("http://api.weatherapi.com/v1/history.json?key=%s&q=%s&dt=%s",
+		apiKey, location, date.Format("2006-01-02"))
 
-	// Make the GET request
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	// Check for non-200 HTTP status
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to fetch weather data: %s", resp.Status)
+		return nil, fmt.Errorf("failed to fetch historical weather data: %s", resp.Status)
 	}
 
-	// Read the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	// Unmarshal the JSON response into the WeatherForecast struct
-	var forecast dtos.WeatherForecast
+	var historicalWeather dtos.ForecastDTO
+	err = json.Unmarshal(body, &historicalWeather)
+	if err != nil {
+		return nil, err
+	}
+
+	return &historicalWeather, nil
+}
+
+// Fetch forecast data for the given location and number of days
+func getWeatherForecast(apiKey string, location string) (*dtos.ForecastDTO, error) {
+	url := fmt.Sprintf("http://api.weatherapi.com/v1/forecast.json?key=%s&q=%s&days=1&aqi=no&alerts=yes",
+		apiKey, location)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch weather data: %s", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var forecast dtos.ForecastDTO
 	err = json.Unmarshal(body, &forecast)
 	if err != nil {
 		return nil, err
@@ -41,7 +71,43 @@ func GetWeatherForecast(apiKey string, location string, days int) (*dtos.Weather
 	return &forecast, nil
 }
 
-// Estimate indoor temperature based on outdoor temperature and a known differential
-func PredictIndoorTemperature(outdoorTemp float64, differential float64) float64 {
+// Predict indoor temperature based on historical data
+func predictIndoorTemperature(outdoorTemp float64, differential float64) float64 {
 	return outdoorTemp + differential
+}
+
+// GetIndoorForecast combines historical and forecast data to predict future indoor conditions
+func GetIndoorForecast(location string ) (*dtos.IndoorForecast, error) {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	apiKey := os.Getenv(("WEATHER_API_KEY"))
+	// -1 = yesterday
+	historicalDate := time.Now().AddDate(0, 0, -1)
+	historicalWeather, err := getHistoricalWeather(apiKey, location, historicalDate)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assume we can get the average outdoor temperature from historical data
+	averageOutdoorTemp := historicalWeather.Forecast.Forecastday[0].DayDetails.AvgTempC
+
+	// Fetch current weather forecast
+	forecast, err := getWeatherForecast(apiKey, location)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use the first forecasted temperature to predict indoor temperature
+	forecastedOutdoorTemp := forecast.Forecast.Forecastday[0].DayDetails.MaxTempC
+	differential := averageOutdoorTemp - historicalWeather.Forecast.Forecastday[0].DayDetails.AvgTempC // Adjust based on historical data
+
+	predictedIndoorTemp := predictIndoorTemperature(forecastedOutdoorTemp, differential)
+
+	return &dtos.IndoorForecast{
+		PredictedTemperature:         predictedIndoorTemp,
+		ForecastedOutdoorTemperature: forecastedOutdoorTemp,
+	}, nil
 }

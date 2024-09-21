@@ -23,3 +23,5 @@ go.work.sum
 
 extracted
 *.zip
+.env
+*service_account.json
