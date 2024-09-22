@@ -1,6 +1,7 @@
 package services
 
 import (
+	"PlantCare/controllers"
 	"PlantCare/dtos"
 	"encoding/json"
 	"fmt"
@@ -44,7 +45,7 @@ func getHistoricalWeather(apiKey string, location string, date time.Time) (*dtos
 
 // Fetch forecast data for the given location and number of days
 func getWeatherForecast(apiKey string, location string) (*dtos.ForecastDTO, error) {
-	url := fmt.Sprintf("http://api.weatherapi.com/v1/forecast.json?key=%s&q=%s&days=1&aqi=no&alerts=yes",
+	url := fmt.Sprintf("http://api.weatherapi.com/v1/forecast.json?key=%s&q=%s&days=3&aqi=no&alerts=yes",
 		apiKey, location)
 
 	resp, err := http.Get(url)
@@ -71,43 +72,42 @@ func getWeatherForecast(apiKey string, location string) (*dtos.ForecastDTO, erro
 	return &forecast, nil
 }
 
-// Predict indoor temperature based on historical data
-func predictIndoorTemperature(outdoorTemp float64, differential float64) float64 {
-	return outdoorTemp + differential
-}
-
-// GetIndoorForecast combines historical and forecast data to predict future indoor conditions
-func GetIndoorForecast(location string ) (*dtos.IndoorForecast, error) {
+func GetIndoorForecast(location string, userId string) (*string, error) {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	apiKey := os.Getenv(("WEATHER_API_KEY"))
+	apiKey := os.Getenv("WEATHER_API_KEY")
 	// -1 = yesterday
 	historicalDate := time.Now().AddDate(0, 0, -1)
-	historicalWeather, err := getHistoricalWeather(apiKey, location, historicalDate)
+	historicalOutdoorsWeather, err := getHistoricalWeather(apiKey, location, historicalDate)
 	if err != nil {
 		return nil, err
 	}
 
-	// Assume we can get the average outdoor temperature from historical data
-	averageOutdoorTemp := historicalWeather.Forecast.Forecastday[0].DayDetails.AvgTempC
-
-	// Fetch current weather forecast
-	forecast, err := getWeatherForecast(apiKey, location)
+	futureOutdoorsWeather, err := getWeatherForecast(apiKey, location)
 	if err != nil {
 		return nil, err
 	}
 
-	// Use the first forecasted temperature to predict indoor temperature
-	forecastedOutdoorTemp := forecast.Forecast.Forecastday[0].DayDetails.MaxTempC
-	differential := averageOutdoorTemp - historicalWeather.Forecast.Forecastday[0].DayDetails.AvgTempC // Adjust based on historical data
+	cropPots, err := controllers.FindPotsByUserId(userId)
+	if err != nil {
+		return nil, err
+	}
 
-	predictedIndoorTemp := predictIndoorTemperature(forecastedOutdoorTemp, differential)
+	historicalIndoorsWeather := controllers.GetMeasurementsBySensorId(cropPots[0].Sensors[0].ID)
 
-	return &dtos.IndoorForecast{
-		PredictedTemperature:         predictedIndoorTemp,
-		ForecastedOutdoorTemperature: forecastedOutdoorTemp,
-	}, nil
+	// Call Predict with the correct structure
+	indoorForecast, err := Predict(dtos.GeminiRequest{
+		PastIndoors:    historicalIndoorsWeather,
+		PastOutdoors:   *historicalOutdoorsWeather,
+		FutureOutdoors: *futureOutdoorsWeather,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	//return indoorForecast, nil
+	return indoorForecast, nil
 }

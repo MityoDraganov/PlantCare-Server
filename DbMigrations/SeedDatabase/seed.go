@@ -96,6 +96,7 @@ func SeedDatabase(db *gorm.DB) error {
 			Alias:              "Temperature Sensor",
 			IsOfficial:         true,
 			MeasuremntInterval: time.Hour,
+			Type: models.TempType,
 		},
 		{
 			CropPotID:          cropPots[0].ID,
@@ -103,6 +104,7 @@ func SeedDatabase(db *gorm.DB) error {
 			Alias:              "Moisture Sensor",
 			IsOfficial:         true,
 			MeasuremntInterval: 2 * time.Hour,
+			Type: models.TempType,
 		},
 		{
 			CropPotID:          cropPots[1].ID,
@@ -110,6 +112,7 @@ func SeedDatabase(db *gorm.DB) error {
 			Alias:              "Light Sensor",
 			IsOfficial:         true,
 			MeasuremntInterval: time.Hour,
+			Type: models.TempType,
 		},
 	}
 	if err := db.Create(&sensors).Error; err != nil {
@@ -140,6 +143,32 @@ func SeedDatabase(db *gorm.DB) error {
 		{
 			SensorID: sensors[0].ID,
 			Value:    22.5,
+			CreatedAt: time.Now(),
+		},
+		{
+			SensorID: sensors[0].ID,
+			Value:    22.5,
+			CreatedAt: time.Now(),
+		},
+		{
+			SensorID: sensors[0].ID,
+			Value:    21.5,
+			CreatedAt: time.Now().AddDate(0, 0, -1), // 1 day ago
+		},
+		{
+			SensorID: sensors[0].ID,
+			Value:    22.0,
+			CreatedAt: time.Now().AddDate(0, 0, -2),
+		},
+		{
+			SensorID: sensors[0].ID,
+			Value:    21,
+			CreatedAt: time.Now().AddDate(0, 0, -3),
+		},
+		{
+			SensorID: sensors[0].ID,
+			Value:    23,
+			CreatedAt: time.Now().AddDate(0, 0, -4),
 		},
 		{
 			SensorID: sensors[1].ID,

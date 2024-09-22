@@ -48,3 +48,17 @@ func (cm *ConnectionManager) GetAllConnections() map[string]*wsTypes.Connection 
 	}
 	return conns
 }
+
+
+// GetConnectionsByRole retrieves all connections for a specific role
+func (cm *ConnectionManager) GetConnectionsByRole(role wsTypes.Role) []*wsTypes.Connection {
+	cm.Mu.RLock()
+	defer cm.Mu.RUnlock()
+	var filteredConns []*wsTypes.Connection
+	for _, conn := range cm.Connections {
+		if conn.Role == role {
+			filteredConns = append(filteredConns, conn)
+		}
+	}
+	return filteredConns
+}

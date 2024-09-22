@@ -7,6 +7,7 @@ import (
 	"PlantCare/utils"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -70,6 +71,19 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func GetMeasurementsBySensorId(id uint) dtos.SensorMeasurementsSummary{
+	sensor, err := findSensorById(id)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	SensorMeasurementsSummaryDto := dtos.SensorMeasurementsSummary{
+		SensorType: sensor.Type,
+		Measurements: sensor.Measurements,
+	}
+	return SensorMeasurementsSummaryDto
+}
+
 func FindSensorBySerialNum(serialNumber string) (*models.Sensor, error) {
 	var sensorDbObject models.Sensor
 	result := initPackage.Db.Where(&models.Sensor{SerialNumber: serialNumber}).First(&sensorDbObject)
@@ -84,7 +98,7 @@ func FindSensorBySerialNum(serialNumber string) (*models.Sensor, error) {
 func findSensorById(id uint) (*models.Sensor, error) {
 
 	var sensor models.Sensor
-	result := initPackage.Db.First(&sensor, "id = ?", id)
+	result := initPackage.Db.Preload("Measurements").First(&sensor, "id = ?", id)
 	if result.Error != nil {
 		return nil, result.Error
 	}

@@ -24,7 +24,7 @@ func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"error": "unauthorized"}`))
 		return
 	}
-	cropPots, err := findPotsByUserId(claims.Subject)
+	cropPots, err := FindPotsByUserId(claims.Subject)
 	if err != nil {
 		fmt.Println("Error extracting session claims")
 	}
@@ -153,7 +153,7 @@ func FindPotByToken(token string) (*models.CropPot, error) {
 	return &cropPot, nil
 }
 
-func findPotsByUserId(userId string) ([]models.CropPot, error) {
+func FindPotsByUserId(userId string) ([]models.CropPot, error) {
 	var cropPots []models.CropPot
 	result := initPackage.Db.
 		Preload("Sensors").

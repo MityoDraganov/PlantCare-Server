@@ -20,3 +20,8 @@ type SensorRequestDto struct {
 	Description  *string `json:"description"`
 	MeasurementInterval string `json:"measurementInterval"`
 }
+
+type SensorMeasurementsSummary struct {
+	SensorType models.Type
+	Measurements []models.Measurement `json:"measurements"`
+}

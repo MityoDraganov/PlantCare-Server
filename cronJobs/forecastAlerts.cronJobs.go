@@ -2,7 +2,9 @@ package cronjobs
 
 import (
 	"PlantCare/websocket/connectionManager"
+	"PlantCare/websocket/wsTypes"
 	"log"
+
 	"github.com/robfig/cron/v3"
 )
 
@@ -12,19 +14,13 @@ func StartCronJobs() {
 	c := cron.New()
 
 	// Add a function to check for new alerts every minute
-	_, err := c.AddFunc("@every 1m", func() {
+	_, err := c.AddFunc("@every 0m", func() {
 
+		connections := connectionManager.ConnManager.GetConnectionsByRole(wsTypes.UserRole)
 
-		connection, ok := connectionManager.ConnManager.GetConnection("user_2jod4hRuJ9nqUIzftpaTTNWLVxv")
-        if !ok {
-            return
-        }
-
-        if connection == nil{
-            return
-        }
-
-        CheckAndSendAlerts(*connection)
+		for _, connection := range connections {
+			CheckAndSendAlerts(*connection)
+		}
 
 	})
 

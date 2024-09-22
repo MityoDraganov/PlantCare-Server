@@ -1,6 +1,7 @@
 package cronjobs
 
 import (
+	"PlantCare/services"
 	"PlantCare/websocket"
 	"PlantCare/websocket/wsTypes"
 	"log"
@@ -9,24 +10,25 @@ import (
 
 // Simulated alert structure
 type Alert struct {
-	Message   string
+	Message   interface{}
 	Timestamp time.Time
 }
 
 // CheckAndSendAlerts checks for new alerts and sends them to users
 func CheckAndSendAlerts(connection wsTypes.Connection) {
 	log.Println("Checking for new alerts...")
-
-	// Simulate fetching alerts (in a real scenario, you might fetch from a database)
-	newAlerts := []Alert{
-		{Message: "New message in your inbox!", Timestamp: time.Now()},
-		{Message: "Don’t forget to complete your task!", Timestamp: time.Now()},
+	userID := connection.Context.Value(wsTypes.CropPotIDKey).(string)
+	forecast, err := services.GetIndoorForecast("Sliven", userID)
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 
-	// Send alerts to all users
-	for _, alert := range newAlerts {
-		sendAlertToUsers(alert, &connection)
+	alert := Alert{
+		Message:   forecast,
+		Timestamp: time.Now(),
 	}
+
+	sendAlertToUsers(alert, &connection)
 
 }
 
