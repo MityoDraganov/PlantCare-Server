@@ -20,7 +20,7 @@ func (h *Handler) HandleAttachControl(data json.RawMessage, connection *wsTypes.
         return
     }
 
-	isCustom := sensorIsCustomCheck(ControlDto.SerialNumber)
+	isCustom := controlIsCustomCheck(ControlDto.SerialNumber)
 	fmt.Println(isCustom)
 }
 

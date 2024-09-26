@@ -112,6 +112,8 @@ func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"result": "success"})
 }
 
+
+
 // admin action
 func AddCropPot(w http.ResponseWriter, r *http.Request) {
 	token, err := utils.GenerateSecureToken(32)

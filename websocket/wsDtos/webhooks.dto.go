@@ -6,6 +6,6 @@ import (
 )
 
 type WebhookPayload struct {
-	Sensor dtos.SensorResponseDto
+	Sensor dtos.SensorDto
 	Measurement models.Measurement
 }

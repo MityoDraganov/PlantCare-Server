@@ -2,17 +2,13 @@ package cronjobs
 
 import (
 	"PlantCare/services"
-	"PlantCare/websocket"
 	"PlantCare/websocket/wsTypes"
+	wsutils "PlantCare/websocket/wsUtils"
 	"log"
 	"time"
 )
 
 // Simulated alert structure
-type Alert struct {
-	Message   interface{}
-	Timestamp time.Time
-}
 
 // CheckAndSendAlerts checks for new alerts and sends them to users
 func CheckAndSendAlerts(connection wsTypes.Connection) {
@@ -23,7 +19,7 @@ func CheckAndSendAlerts(connection wsTypes.Connection) {
 		log.Fatal(err.Error())
 	}
 
-	alert := Alert{
+	alert := wsTypes.Alert{
 		Message:   forecast,
 		Timestamp: time.Now(),
 	}
@@ -33,6 +29,6 @@ func CheckAndSendAlerts(connection wsTypes.Connection) {
 }
 
 // Simulate sending an alert to all users
-func sendAlertToUsers(alert Alert, connection *wsTypes.Connection) {
-	websocket.SendMessage(connection, wsTypes.ForecastAlert, alert)
+func sendAlertToUsers(alert wsTypes.Alert, connection *wsTypes.Connection) {
+	wsutils.SendMessage(connection, wsTypes.ForecastAlert, alert)
 }

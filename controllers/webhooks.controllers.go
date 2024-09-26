@@ -55,10 +55,10 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var subscribedEventsDto []dtos.SensorResponseDto
+	var subscribedEventsDto []dtos.SensorDto
 
 	for _, event := range webhook.SubscribedEvents {
-		subscribedEvent := dtos.SensorResponseDto{
+		subscribedEvent := dtos.SensorDto{
 			SerialNumber: event.SerialNumber,
 			Alias:        event.Alias,
 			Description:  event.Description,
@@ -198,11 +198,11 @@ func GetSubscribedWebhooksForSensor(sensorID uint) ([]models.Webhook, error) {
 
 // Maps a single Webhook to WebhookResponse DTO
 func mapWebhookToDTO(webhook models.Webhook) dtos.WebhookResponse {
-	subscribedEvents := []dtos.SensorResponseDto{}
+	subscribedEvents := []dtos.SensorDto{}
 
 	// Populate subscribedEvents if there are any
 	for _, event := range webhook.SubscribedEvents {
-		subscribedEvent := dtos.SensorResponseDto{
+		subscribedEvent := dtos.SensorDto{
 			SerialNumber: event.SerialNumber,
 			Alias:        event.Alias,
 			Description:  utils.CoalesceString(event.Description),

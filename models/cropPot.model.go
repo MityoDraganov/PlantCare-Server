@@ -7,7 +7,7 @@ import (
 type CropPot struct {
 	gorm.Model
 	GroupID     *uint
-	IsPinned    bool
+	IsPinned    bool `json:"isPinned"`
 	IsArchived  bool
 	Token       string `gorm:"size:255;uniqueIndex;not null"`
 	User        User   `gorm:"foreignKey:ClerkUserID;references:ClerkID"`

@@ -191,7 +191,7 @@ func mapControlToDTO(control models.Control) dtos.ControlDto {
 		Condition: &dtos.ConditionDto{
 			On:  control.Condition.On,
 			Off: control.Condition.Off,
-			DependentSensor: func() *dtos.SensorResponseDto {
+			DependentSensor: func() *dtos.SensorDto {
 				if control.Condition.DependentSensor != nil {
 					dto := MapSensorToDTO(*control.Condition.DependentSensor)
 					return &dto

@@ -70,35 +70,3 @@ func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsu
 	}
 }
 
-// SendMessage sends a message to the client over the WebSocket connection
-func SendMessage(connection *wsTypes.Connection, event wsTypes.Event, data interface{}) error {
-	// Convert the data to JSON
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		fmt.Println("Error marshaling data:", err)
-		return err
-	}
-
-	// Create the message
-	message := wsTypes.Message{
-		Event:     event,
-		Data:      json.RawMessage(jsonData),
-		Timestamp: time.Now(),
-	}
-
-	// Marshal the message to JSON
-	messageBytes, err := json.Marshal(message)
-	if err != nil {
-		fmt.Println("Error marshaling message:", err)
-		return err
-	}
-
-	// Send the message through the WebSocket connection
-	err = connection.Conn.WriteMessage(1, messageBytes)
-	if err != nil {
-		fmt.Println("Error while sending message:", err)
-		return err
-	}
-
-	return nil
-}

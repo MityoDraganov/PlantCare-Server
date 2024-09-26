@@ -1,7 +1,7 @@
 package wsDtos
 
 type SensorDTO struct {
-	SerialNumber string
-	Alias string
-	Description *string
+	SerialNumber string `json:"serialNumber"`
+	Alias        string `json:"alias"`
+	Description  *string
 }

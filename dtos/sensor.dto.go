@@ -4,17 +4,24 @@ import (
 	"PlantCare/models"
 )
 
-type SensorResponseDto struct {
+type SensorDto struct {
 	ID uint `json:"id"`
 	SerialNumber string `json:"serialNumber"`
 	Alias        string `json:"alias"`
 	Description  *string `json:"description"`
 	MeasurementInterval string `json:"measurementInterval"`
+	Type models.Type
 
 	Measurements []models.Measurement `json:"measurements"`
 }
 
-type SensorRequestDto struct {
+type AttachSensor struct {
+	SerialNumber string `json:"serialNumber"`
+	Alias        string `json:"alias"`
+	Description  *string
+}
+
+type SensorUserRequestDto struct {
 	ID uint `json:"id"`
 	Alias        string `json:"alias"`
 	Description  *string `json:"description"`

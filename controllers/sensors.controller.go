@@ -17,7 +17,7 @@ import (
 )
 
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
-	var sensorDto dtos.SensorRequestDto
+	var sensorDto dtos.SensorDto
 
 	// Decode the JSON body into webhookDto
 	err := json.NewDecoder(r.Body).Decode(&sensorDto)
@@ -71,6 +71,24 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+
+func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error){
+	sensor := models.Sensor{
+			CropPotID:          potId,
+			SerialNumber:       sensorDto.SerialNumber,
+			IsOfficial:         false,
+			MeasuremntInterval: time.Hour,
+	}
+
+	result := initPackage.Db.Create(&sensor).Clauses(clause.Returning{})
+	if result.Error != nil {
+		return nil, &result.Error
+	}
+
+	return &sensor, nil
+}
+
+
 func GetMeasurementsBySensorId(id uint) dtos.SensorMeasurementsSummary{
 	sensor, err := findSensorById(id)
 	if err != nil {
@@ -105,9 +123,9 @@ func findSensorById(id uint) (*models.Sensor, error) {
 	return &sensor, nil
 }
 
-// Maps a single Sensor to SensorResponseDto
-func MapSensorToDTO(sensor models.Sensor) dtos.SensorResponseDto {
-	return dtos.SensorResponseDto{
+// Maps a single Sensor to SensorDto
+func MapSensorToDTO(sensor models.Sensor) dtos.SensorDto {
+	return dtos.SensorDto{
 		ID:                  sensor.ID,
 		SerialNumber:        sensor.SerialNumber,
 		Alias:               sensor.Alias,
@@ -117,22 +135,22 @@ func MapSensorToDTO(sensor models.Sensor) dtos.SensorResponseDto {
 	}
 }
 
-// Converts a single Sensor or a slice of Sensors to a slice of SensorResponseDto
-func ToSensorsDTO(input interface{}) []dtos.SensorResponseDto {
+// Converts a single Sensor or a slice of Sensors to a slice of SensorDto
+func ToSensorsDTO(input interface{}) []dtos.SensorDto {
 	switch v := input.(type) {
 	case models.Sensor:
 		// If it's a single sensor, wrap it in a slice
-		return []dtos.SensorResponseDto{MapSensorToDTO(v)}
+		return []dtos.SensorDto{MapSensorToDTO(v)}
 	case []models.Sensor:
-		// If it's a slice of sensors, map each sensor to SensorResponseDto
-		sensorDTOs := make([]dtos.SensorResponseDto, len(v))
+		// If it's a slice of sensors, map each sensor to SensorDto
+		sensorDTOs := make([]dtos.SensorDto, len(v))
 		for i, sensor := range v {
 			sensorDTOs[i] = MapSensorToDTO(sensor)
 		}
 		return sensorDTOs
 	default:
 		// Handle unexpected types by returning an empty slice
-		return []dtos.SensorResponseDto{}
+		return []dtos.SensorDto{}
 	}
 }
 

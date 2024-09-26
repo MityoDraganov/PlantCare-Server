@@ -14,7 +14,7 @@ func StartCronJobs() {
 	c := cron.New()
 
 	// Add a function to check for new alerts every minute
-	_, err := c.AddFunc("@every 0m", func() {
+	_, err := c.AddFunc("@every 10m", func() {
 
 		connections := connectionManager.ConnManager.GetConnectionsByRole(wsTypes.UserRole)
 
@@ -27,6 +27,8 @@ func StartCronJobs() {
 	if err != nil {
 		log.Fatalf("Error scheduling cron job: %v", err)
 	}
+
+	
 
 	// Start the Cron scheduler
 	c.Start()

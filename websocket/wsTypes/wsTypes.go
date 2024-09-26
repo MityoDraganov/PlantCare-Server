@@ -17,6 +17,12 @@ const (
 type Event string
 const (
 	ForecastAlert Event = "forecastAlert"
+	SensorConnected Event = "sensorConnected"
+
+	HandleAttachSensor Event = "HandleAttachSensor"
+	SensorNotFound Event = "SensorNotFound"
+	SensorAdded Event = "SensorAdded"
+	DriverRequired Event = "DriverRequired"
 )
 
 type Connection struct {
@@ -44,3 +50,9 @@ type ContextKey string
 
 const CropPotIDKey ContextKey = "cropPotID"
 const UserIDKey ContextKey = "ClerkID"
+
+
+type Alert struct {
+	Message   interface{}
+	Timestamp time.Time
+}
