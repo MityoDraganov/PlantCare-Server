@@ -5,7 +5,6 @@ import (
 	"PlantCare/websocket/wsTypes"
 	wsutils "PlantCare/websocket/wsUtils"
 	"log"
-	"time"
 )
 
 // Simulated alert structure
@@ -21,7 +20,6 @@ func CheckAndSendAlerts(connection wsTypes.Connection) {
 
 	alert := wsTypes.Alert{
 		Message:   forecast,
-		Timestamp: time.Now(),
 	}
 
 	sendAlertToUsers(alert, &connection)
@@ -30,5 +28,5 @@ func CheckAndSendAlerts(connection wsTypes.Connection) {
 
 // Simulate sending an alert to all users
 func sendAlertToUsers(alert wsTypes.Alert, connection *wsTypes.Connection) {
-	wsutils.SendMessage(connection, wsTypes.ForecastAlert, alert)
+	wsutils.SendMessage(connection, "", wsTypes.HandleForecastAlert, alert)
 }

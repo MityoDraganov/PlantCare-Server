@@ -44,7 +44,7 @@ func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsu
 	handler := &eventHandlers.Handler{}
 
 	handlerValue := reflect.ValueOf(handler)
-	method := handlerValue.MethodByName(string(message.Event))
+	method := handlerValue.MethodByName(string(*message.Event))
 
 	if method.IsValid() && method.Type().NumIn() == 2 {
 		// Pass raw message data as is
@@ -56,7 +56,7 @@ func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsu
 			// Wrap the method with rate limiting logic
 			wrappedMethod := rateLimiter.RateLimitWrapper(func(d json.RawMessage, c *wsTypes.Connection) {
 				method.Call(args)
-			}, string(message.Event))
+			}, string(*message.Event))
 
 			// Call the wrapped method
 			wrappedMethod(data, connection)
@@ -69,4 +69,3 @@ func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsu
 		wsutils.SendErrorResponse(connection, http.StatusBadRequest)
 	}
 }
-

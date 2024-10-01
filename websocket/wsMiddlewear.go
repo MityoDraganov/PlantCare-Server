@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"PlantCare/controllers"
 	"PlantCare/utils"
 	"PlantCare/websocket/connectionManager"
+	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
 	"PlantCare/websocket/wsUtils"
 
@@ -214,6 +214,23 @@ func userWsMiddlewear(w http.ResponseWriter, r *http.Request) {
     
         wsutils.SendValidRequest(&connection, userDbObject)
         // Start handling messages
+
+		messages, err := controllers.FindMessagesByUserId(claims.Subject)
+		if err != nil {
+			wsutils.SendErrorResponse(&connection, http.StatusInternalServerError)
+
+		}
+		for _, message := range messages {
+			messageDto := wsDtos.NotificationDto{
+				Title: utils.CoalesceString(message.Title),
+				Text: message.Text,
+				IsRead: message.IsRead,
+				Timestamp: message.CreatedAt,
+
+			}
+			
+			wsutils.SendMessage(&connection, wsTypes.MessageFound, "", messageDto)
+		}
         go HandleMessages(&connection)
         go wsutils.SendMessages(&connection)
     
@@ -226,14 +243,3 @@ func NewInMemoryJWKStore() *InMemoryJWKStore {
 	return &InMemoryJWKStore{}
 }
 
-func toJSON(data interface{}) json.RawMessage {
-	if data == nil {
-		return nil
-	}
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		fmt.Println("Error marshalling data:", err)
-		return nil
-	}
-	return dataBytes
-}

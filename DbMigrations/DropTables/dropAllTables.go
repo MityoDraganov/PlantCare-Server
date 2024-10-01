@@ -21,14 +21,15 @@ func DropAllTables(db *gorm.DB) error {
 	modelsToDrop := []interface{}{
 		&models.User{},
 		&models.CropPot{},
-		&models.Sensor{}, 
-		&models.Measurement{}, 
-		&models.Control{}, 
-		&models.Webhook{}, 
+		&models.Sensor{},
+		&models.Measurement{},
+		&models.Condition{},
+		&models.Control{},
+		&models.Webhook{},
 		&models.Update{},
 		&models.ActivePeriod{},
-		&models.Condition{},
 		&models.Driver{},
+		&models.Message{},
 	}
 
 	for _, model := range modelsToDrop {

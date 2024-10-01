@@ -62,3 +62,12 @@ func (cm *ConnectionManager) GetConnectionsByRole(role wsTypes.Role) []*wsTypes.
 	}
 	return filteredConns
 }
+
+func (cm *ConnectionManager) GetConnectionByKey(key string) (*wsTypes.Connection, bool) {
+    cm.Mu.RLock()
+    defer cm.Mu.RUnlock()
+
+    // Attempt to get the connection by the provided key
+    conn, exists := cm.Connections[key]
+    return conn, exists
+}

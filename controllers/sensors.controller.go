@@ -52,7 +52,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sensorUpdate := models.Sensor{
-		Alias:              sensorDto.Alias,
+		Alias:              &sensorDto.Alias,
 		Description:        sensorDto.Description,
 		MeasuremntInterval: intervalUpdateTime,
 	}
@@ -71,13 +71,16 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
-func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error){
+func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error) {
 	sensor := models.Sensor{
-			CropPotID:          potId,
-			SerialNumber:       sensorDto.SerialNumber,
-			IsOfficial:         false,
-			MeasuremntInterval: time.Hour,
+		CropPotID:    potId,
+		SerialNumber: sensorDto.SerialNumber,
+		IsOfficial:   false,
+
+		Alias:       sensorDto.Alias,
+		Description: sensorDto.Description,
+
+		MeasuremntInterval: time.Hour,
 	}
 
 	result := initPackage.Db.Create(&sensor).Clauses(clause.Returning{})
@@ -88,15 +91,14 @@ func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error)
 	return &sensor, nil
 }
 
-
-func GetMeasurementsBySensorId(id uint) dtos.SensorMeasurementsSummary{
+func GetMeasurementsBySensorId(id uint) dtos.SensorMeasurementsSummary {
 	sensor, err := findSensorById(id)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	SensorMeasurementsSummaryDto := dtos.SensorMeasurementsSummary{
-		SensorType: sensor.Type,
+		SensorType:   sensor.Type,
 		Measurements: sensor.Measurements,
 	}
 	return SensorMeasurementsSummaryDto
@@ -112,9 +114,7 @@ func FindSensorBySerialNum(serialNumber string) (*models.Sensor, error) {
 
 	return &sensorDbObject, nil
 }
-
 func findSensorById(id uint) (*models.Sensor, error) {
-
 	var sensor models.Sensor
 	result := initPackage.Db.Preload("Measurements").First(&sensor, "id = ?", id)
 	if result.Error != nil {
@@ -128,7 +128,7 @@ func MapSensorToDTO(sensor models.Sensor) dtos.SensorDto {
 	return dtos.SensorDto{
 		ID:                  sensor.ID,
 		SerialNumber:        sensor.SerialNumber,
-		Alias:               sensor.Alias,
+		Alias:               *sensor.Alias,
 		Description:         sensor.Description,
 		MeasurementInterval: utils.DurationToTimeString(sensor.MeasuremntInterval),
 		Measurements:        sensor.Measurements,
@@ -154,3 +154,25 @@ func ToSensorsDTO(input interface{}) []dtos.SensorDto {
 	}
 }
 
+func ChangeAttachedState(sensor *models.Sensor) error {
+	// Toggle the IsAttached field
+	sensor.IsAttached = !sensor.IsAttached
+
+	// Update the database with the new state
+	if err := initPackage.Db.Save(sensor).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func FindDriverBySensorId(sensorId uint) (*models.Driver, error) {
+	var driver models.Driver
+	result := initPackage.Db.First(&driver, "sensor_id = ?", sensorId)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &driver, nil
+}

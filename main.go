@@ -37,9 +37,9 @@ func main() {
 	cronjobs.StartCronJobs()
 	err := godotenv.Load()
 	if err != nil {
-	  log.Fatal("Error loading .env file")
+		log.Fatal("Error loading .env file")
 	}
-	
+
 	clerk.SetKey(os.Getenv(("CLERK_API_KEY")))
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api/v1").Subrouter()
@@ -61,6 +61,7 @@ func main() {
 		&models.Update{},
 		&models.ActivePeriod{},
 		&models.Driver{},
+		&models.Message{},
 	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
@@ -69,6 +70,9 @@ func main() {
 	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister)
 
 	// PROTECTED ROUTES
+
+	// --INBOX--
+	api.HandleFunc("/inbox", controllers.GetMessagesForUser).Methods("GET")
 
 	// --CROP POTS--
 	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")

@@ -30,9 +30,9 @@ func ClerkUserRegister(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func FindUserById(token string) (*models.User, error) {
+func FindUserById(ClerkId  string) (*models.User, error) {
 	var user models.User
-	if err := initPackage.Db.Where("clerk_id = ?", token).First(&user).Error; err != nil {
+	if err := initPackage.Db.Where("clerk_id = ?", ClerkId).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil

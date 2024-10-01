@@ -1,0 +1,70 @@
+package controllers
+
+import (
+	"PlantCare/initPackage"
+	"PlantCare/models"
+	"PlantCare/utils"
+	"encoding/json"
+	"fmt"
+	"net/http"
+
+	"github.com/clerk/clerk-sdk-go/v2"
+)
+
+func GetMessagesForUser(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("here req")
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "unauthorized"}`))
+		return
+	}
+	messages, err := FindMessagesByUserId(claims.Subject)
+	fmt.Println(messages)
+	if err != nil {
+		fmt.Println("Error extracting session claims")
+	}
+
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(messages)
+}
+
+func CreateMessage(clerkUserId string, data string) error {
+	fmt.Println("create")
+	title := "Sensor issue"
+	message := models.Message{
+		Title: &title,
+		ClerkUserID: clerkUserId,
+		Text: data,
+		IsRead: false,
+	}
+
+
+	result := initPackage.Db.Create(&message)
+	if result.Error != nil {
+		return result.Error
+	}
+	return nil
+}
+
+func MarkAllAsRead(userId uint) {
+	
+}
+
+
+
+func FindMessagesByUserId(userId string) ([]models.Message, error) {
+	var messages []models.Message
+	result := initPackage.Db.
+		Where("clerk_user_id = ?", userId).
+		Find(&messages)  // No need to preload "Inbox" here
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// Ensure messages is never nil using your utility function
+	return utils.ReturnEmptyIfNil(messages), nil
+}
+

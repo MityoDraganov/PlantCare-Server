@@ -18,11 +18,6 @@ func CreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err != nil {
-		utils.JsonError(w, "Invalid potId", http.StatusBadRequest)
-		return
-	}
-
 	cropPotDbObject, err := FindCropPotById(string(groupDto.CropPotID))
 
 	group := models.Group{

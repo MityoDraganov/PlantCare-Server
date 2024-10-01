@@ -6,8 +6,11 @@ import (
 	"PlantCare/initPackage"
 	"PlantCare/models"
 	"PlantCare/utils"
+	"log"
 	"net/http"
+	"strconv"
 
+	"PlantCare/websocket/connectionManager"
 	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
 	wsutils "PlantCare/websocket/wsUtils"
@@ -15,122 +18,153 @@ import (
 
 	"encoding/json"
 
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
 func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.Connection) {
-    var sensorDataDto wsDtos.SensorMeasuremntDto
+	var sensorDataDto wsDtos.SensorMeasuremntDto
 
-    err := json.Unmarshal(data, &sensorDataDto)
-    if err != nil {
-        fmt.Println("Error while unmarshaling sensor data:", err)
-        return
-    }
+	err := json.Unmarshal(data, &sensorDataDto)
+	if err != nil {
+		fmt.Println("Error while unmarshaling sensor data:", err)
+		return
+	}
 
-    fmt.Printf("Handling sensor data: %+v\n", sensorDataDto)
+	fmt.Printf("Handling sensor data: %+v\n", sensorDataDto)
 
-    sensorDbObject, err := controllers.FindSensorBySerialNum(sensorDataDto.SensorSerialNumber)
-    if err != nil {
+	sensorDbObject, err := controllers.FindSensorBySerialNum(sensorDataDto.SensorSerialNumber)
+	if err != nil {
 		wsutils.SendErrorResponse(connection, http.StatusBadRequest)
 		return
 	}
 
-    measurementData := models.Measurement{
-        SensorID: sensorDbObject.ID,
-        Value: sensorDataDto.Value,
-    }
-    
-    measurementDataDbObject := initPackage.Db.Create(&measurementData).Clauses(clause.Returning{})
-
-    if measurementDataDbObject.Error != nil {
-       wsutils.SendErrorResponse(connection, http.StatusNotFound)
-    }
-
-    webhooks, err := controllers.GetSubscribedWebhooksForSensor(sensorDbObject.ID)
-	if err != nil {
-        wsutils.SendErrorResponse(connection, http.StatusBadRequest)
+	measurementData := models.Measurement{
+		SensorID: sensorDbObject.ID,
+		Value:    sensorDataDto.Value,
 	}
 
-    for _, webhook := range webhooks {
-        payload := wsDtos.WebhookPayload{
-            Sensor: dtos.SensorDto{
-                SerialNumber: sensorDbObject.SerialNumber,
-                Alias: sensorDbObject.Alias,
-                Description: sensorDbObject.Description,
-            },
-            Measurement: measurementData,
-        }
+	measurementDataDbObject := initPackage.Db.Create(&measurementData).Clauses(clause.Returning{})
+
+	if measurementDataDbObject.Error != nil {
+		wsutils.SendErrorResponse(connection, http.StatusNotFound)
+	}
+
+	webhooks, err := controllers.GetSubscribedWebhooksForSensor(sensorDbObject.ID)
+	if err != nil {
+		wsutils.SendErrorResponse(connection, http.StatusBadRequest)
+	}
+
+	for _, webhook := range webhooks {
+		payload := wsDtos.WebhookPayload{
+			Sensor: dtos.SensorDto{
+				SerialNumber: sensorDbObject.SerialNumber,
+				Alias:        *sensorDbObject.Alias,
+				Description:  sensorDbObject.Description,
+			},
+			Measurement: measurementData,
+		}
 		go utils.TriggerWebhook(webhook.EndpointUrl, payload)
 	}
 
-    fmt.Println(measurementDataDbObject)
-    wsutils.SendValidResponse(connection, nil)
+	fmt.Println(measurementDataDbObject)
+	wsutils.SendValidResponse(connection, nil)
 }
 
-
 func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.Connection) {
-	var sensorDto dtos.AttachSensor
-
-	potID, ok := connection.Context.Value(wsTypes.CropPotIDKey).(string)
-	fmt.Print(potID)
-	if !ok{
+	potIDStr, ok := connection.Context.Value(wsTypes.CropPotIDKey).(string)
+	if !ok {
 		fmt.Println("Error while reading PotId")
 		return
 	}
-	
+
+	var sensorDto dtos.AttachSensor
 	err := json.Unmarshal(data, &sensorDto)
 	if err != nil {
 		fmt.Println("Error while unmarshaling sensor data:", err)
 		return
 	}
 
-	// Try to find the sensor by serial number
-	sensorDbObject, err := controllers.FindSensorBySerialNum(sensorDto.SerialNumber)
+	potID64, err := strconv.ParseUint(potIDStr, 10, 32)
 	if err != nil {
-		fmt.Println("Sensor not found, adding a new one")
+		log.Fatal(err.Error())
+		return
+	}
+	potIDUint := uint(potID64)
+	cropPotDbObject, err := controllers.FindCropPotById(potIDStr)
+	if err != nil {
+		log.Fatal("Pot not found!: " + err.Error())
+	}
 
-		// Add the sensor if not found
-		addedSensor, addErr := controllers.AddSensor(0, sensorDto) 
+	sensorDbObject, err := controllers.FindSensorBySerialNum(sensorDto.SerialNumber)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		fmt.Println(err)
+		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("sensorDbObject")
+	fmt.Println(sensorDbObject)
+	fmt.Println("err")
+	fmt.Println(err)
+
+	if sensorDbObject == nil {
+		fmt.Println("Sensor not found, adding a new one")
+		alert := wsTypes.Alert{
+			Message: "Sensor not found, adding a new one",
+		}
+		wsutils.SendMessage(connection, wsTypes.SensorAdded, "", alert)
+
+		sensorDbObject, addErr := controllers.AddSensor(potIDUint, sensorDto)
+		fmt.Println(addErr)
+		fmt.Println(sensorDbObject)
 		if addErr != nil {
 			fmt.Println("Error adding sensor:", *addErr)
+			wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
 			return
 		}
 
-		// Inform the user and provide the option to add a driver
-		alert := wsTypes.Alert{
-			Message: addedSensor,
+		alert = wsTypes.Alert{
+			Message: "Sensor added successfully: " + sensorDbObject.SerialNumber,
 		}
-		wsutils.SendMessage(connection, wsTypes.SensorAdded, alert)
-		return
+		wsutils.SendMessage(connection, wsTypes.SensorAdded, "", alert)
 	}
 
-	// If the sensor exists, check if a driver is provided
-	isDriverProvided, err := isDriverProvided(sensorDbObject.ID)
+	if sensorDbObject == nil {
+		fmt.Println("Sensor not found or uninitialized")
+		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
+		return
+	}
+	err = controllers.ChangeAttachedState(sensorDbObject)
 	if err != nil {
-		fmt.Println("Error checking driver:", err)
+		log.Fatal("Error changing attached state: ", err)
 		return
 	}
 
-	// If no driver is provided, prompt the user to add one
 	alert := wsTypes.Alert{}
-	if !*isDriverProvided {
-		alert.Message = "Please provide a driver for the sensor."
-		wsutils.SendMessage(connection, wsTypes.DriverRequired, alert)
-	} else {
-		alert.Message = "Sensor connected successfully."
-		wsutils.SendMessage(connection, wsTypes.SensorConnected, alert)
+	 sensorDriver, err := controllers.FindDriverBySensorId(sensorDbObject.ID)
+	 fmt.Println(sensorDriver)
+	 if err != nil && err != gorm.ErrRecordNotFound {
+		log.Fatal("Error here 101")
+	return
 	}
 
+	if sensorDriver != nil {
+	 	alert.Message = "Sensor connected successfully."
+	 	wsutils.SendMessage(connection, wsTypes.SensorConnected, "", alert)
+	 	return;
+	 }
 
-}
+	alert.Message = "Please provide a driver for the sensor."
+	fmt.Println("cropPotDbObject.ClerkUserID")
+	fmt.Println(*cropPotDbObject.ClerkUserID)
+	 controllers.CreateMessage(*cropPotDbObject.ClerkUserID, "Please provide a driver for the sensor.")
+	 wsutils.SendMessage(connection, wsTypes.DriverRequired, "", alert)
 
-
-func isDriverProvided(sensorId uint) (*bool, error){
-	var driver models.Driver
-	result := initPackage.Db.First(&driver, "sensor_id = ?", sensorId)
-	if result.Error != nil {
-		return nil, result.Error
+	userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDbObject.ClerkUserID)
+	fmt.Println(isExisting)
+	fmt.Println(userConn)
+	if isExisting {
+		wsutils.SendMessage(userConn, wsTypes.DriverRequired, "", alert)
 	}
-	isProvided := result != nil
-	return &isProvided , nil
+
 }

@@ -9,20 +9,30 @@ import (
 )
 
 type Role string
+
 const (
 	UserRole Role = "user"
 	PotRole  Role = "pot"
 )
 
 type Event string
-const (
-	ForecastAlert Event = "forecastAlert"
-	SensorConnected Event = "sensorConnected"
 
-	HandleAttachSensor Event = "HandleAttachSensor"
-	SensorNotFound Event = "SensorNotFound"
-	SensorAdded Event = "SensorAdded"
-	DriverRequired Event = "DriverRequired"
+const (
+	HandleForecastAlert       Event = "forecastAlert"
+	HandleAttachSensor  Event = "handleAttachSensor"
+	HandleDetachSensor  Event = "handleDetachSensor"
+)
+
+type StatusResponse string
+
+const (
+	SensorConnected  StatusResponse = "sensorConnected"
+	SensorDetached   StatusResponse = "sensorDetached"
+	SensorNotFound   StatusResponse = "sensorNotFound"
+	SensorAdded      StatusResponse = "sensorAdded"
+	DriverRequired   StatusResponse = "driverRequired"
+
+	MessageFound StatusResponse = "messageFound"
 )
 
 type Connection struct {
@@ -34,9 +44,11 @@ type Connection struct {
 }
 
 type Message struct {
-	Event Event          `json:"event"`
-	Data  json.RawMessage `json:"data"` // Raw JSON to be parsed dynamically
-	Timestamp time.Time `json:"timestamp"`
+	StatusResponse *StatusResponse      `json:"statusResponse,omitempty"`
+	Event          *Event               `json:"event,omitempty"`
+	Data           json.RawMessage      `json:"data"`
+	Timestamp      time.Time            `json:"timestamp"`
+	IsRead bool `json:"isRead"`
 }
 
 type WsResponse struct {
@@ -44,15 +56,16 @@ type WsResponse struct {
 	Status int
 	Data   interface{}
 }
+
 type SendMessagesFunc func(connection *Connection)
 
 type ContextKey string
 
-const CropPotIDKey ContextKey = "cropPotID"
-const UserIDKey ContextKey = "ClerkID"
-
+const (
+	CropPotIDKey ContextKey = "cropPotID"
+	UserIDKey    ContextKey = "ClerkID"
+)
 
 type Alert struct {
 	Message   interface{}
-	Timestamp time.Time
 }

@@ -17,7 +17,7 @@ type SensorDto struct {
 
 type AttachSensor struct {
 	SerialNumber string `json:"serialNumber"`
-	Alias        string `json:"alias"`
+	Alias        *string `json:"alias"`
 	Description  *string
 }
 
