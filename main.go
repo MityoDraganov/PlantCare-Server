@@ -54,13 +54,13 @@ func main() {
 		&models.User{},
 		&models.CropPot{},
 		&models.Sensor{},
+		&models.Driver{},
 		&models.Measurement{},
 		&models.Condition{},
 		&models.Control{},
 		&models.Webhook{},
 		&models.Update{},
 		&models.ActivePeriod{},
-		&models.Driver{},
 		&models.Message{},
 	)
 	if err != nil {
@@ -90,6 +90,7 @@ func main() {
 	// --SENSORS--
 	sensors := api.PathPrefix("/sensors").Subrouter()
 	sensors.HandleFunc("/{sensorId}", controllers.UpdateSensor).Methods("PUT")
+	sensors.HandleFunc("", controllers.UpdateSensor).Methods("PUT")
 
 	// --WEBHOOKS--
 	webhooks := api.PathPrefix("/webhooks").Subrouter()

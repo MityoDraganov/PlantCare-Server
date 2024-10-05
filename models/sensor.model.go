@@ -17,9 +17,10 @@ type Sensor struct {
 	CropPotID    uint
 	SerialNumber string `gorm:"type:varchar(100);uniqueIndex;not null"`
 
-	Driver       Driver
-	Type         Type
-	IsAttached   bool
+	DriverID    *uint    // Foreign key to reference the software driver
+	Driver      *Driver `gorm:"foreignKey:DriverID;references:ID"` // Many sensors to one driver
+	Type        Type
+	IsAttached  bool
 
 	Alias              *string       `json:"alias"`
 	Description        *string       `json:"description"`

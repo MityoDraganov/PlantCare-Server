@@ -160,6 +160,7 @@ func FindPotsByUserId(userId string) ([]models.CropPot, error) {
 	result := initPackage.Db.
 		Preload("Sensors").
 		Preload("Sensors.Measurements").
+		Preload("Sensors.Driver").
 		Preload("Controls").
 		Preload("Controls.ActivePeriod").
 		Preload("Controls.Updates").

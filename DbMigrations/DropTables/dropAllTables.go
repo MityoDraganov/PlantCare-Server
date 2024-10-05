@@ -22,13 +22,13 @@ func DropAllTables(db *gorm.DB) error {
 		&models.User{},
 		&models.CropPot{},
 		&models.Sensor{},
+		&models.Driver{},
 		&models.Measurement{},
 		&models.Condition{},
 		&models.Control{},
 		&models.Webhook{},
 		&models.Update{},
 		&models.ActivePeriod{},
-		&models.Driver{},
 		&models.Message{},
 	}
 

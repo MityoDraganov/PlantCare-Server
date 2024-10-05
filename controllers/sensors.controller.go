@@ -7,69 +7,111 @@ import (
 	"PlantCare/utils"
 	"encoding/json"
 	"fmt"
+	"gorm.io/gorm/clause"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
-
-	"github.com/gorilla/mux"
-	"gorm.io/gorm/clause"
 )
 
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
-	var sensorDto dtos.SensorDto
+	var sensorDtos []dtos.SensorUserRequestDto
 
-	// Decode the JSON body into webhookDto
-	err := json.NewDecoder(r.Body).Decode(&sensorDto)
+	// Decode request body into an array of sensorDtos
+	err := json.NewDecoder(r.Body).Decode(&sensorDtos)
 	if err != nil {
-		utils.JsonError(w, err.Error(), http.StatusBadRequest)
+		log.Println(err) // Use log.Println for non-fatal errors
+		utils.JsonError(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
 
-	// Extract the webhook ID from the URL parameters
-	params := mux.Vars(r)
-	stringId := params["sensorId"]
-	id, err := strconv.ParseUint(stringId, 10, 32)
-	if err != nil {
-		utils.JsonError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	tx := initPackage.Db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			utils.JsonError(w, fmt.Sprintf("Transaction error: %v", r), http.StatusInternalServerError)
+		}
+	}()
 
-	sensorDbObject, err := findSensorById(uint(id))
-	if err != nil {
-		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	var intervalUpdateTime time.Duration
-	if sensorDto.MeasurementInterval != "" {
-		t, err := time.Parse("15:04", sensorDto.MeasurementInterval)
+	for _, sensorDto := range sensorDtos {
+		sensorDbObject, err := findSensorById(uint(sensorDto.ID))
 		if err != nil {
-			utils.JsonError(w, fmt.Sprintf("Invalid start time format: %s", err.Error()), http.StatusBadRequest)
+			tx.Rollback()
+			log.Printf("Sensor not found: %v", err) // Improved logging
+			utils.JsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-		intervalUpdateTime = time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute
+	
+		var intervalUpdateTime time.Duration
+		if sensorDto.MeasurementInterval != "" {
+			t, err := time.Parse("15:04", sensorDto.MeasurementInterval)
+			if err != nil {
+				tx.Rollback()
+				log.Printf("Invalid measurement interval format: %s", err.Error()) // Improved logging
+				utils.JsonError(w, fmt.Sprintf("Invalid measurement interval format: %s", err.Error()), http.StatusBadRequest)
+				return
+			}
+			intervalUpdateTime = time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute
+		}
+	
+		sensorUpdate := models.Sensor{
+			Alias:              &sensorDto.Alias, 
+			Description:        sensorDto.Description,
+			MeasuremntInterval: intervalUpdateTime,
+		}
+	
+		result := tx.Model(sensorDbObject).Updates(sensorUpdate).Clauses(clause.Returning{})
+		if result.Error != nil {
+			tx.Rollback()
+			log.Printf("Failed to update sensor: %v", result.Error) // Improved logging
+			utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
+			return
+		}
+	
+		// Handle DriverUrl updates safely
+		if sensorDto.DriverUrl != "" {
+			log.Println("Updating Driver URL...") // Log before attempting to update driver
+			if sensorDbObject.Driver == nil {
+				log.Println("Driver not found, creating new driver.")
+				driver := models.Driver{
+					
+					DownloadUrl: sensorDto.DriverUrl,
+				}
+				if err := tx.Create(&driver).Error; err != nil {
+					log.Printf("Failed to create new driver: %v", err) // Improved logging
+					tx.Rollback()
+					utils.JsonError(w, "Failed to create new driver", http.StatusInternalServerError)
+					return
+				}
+				fmt.Printf("Driver object: %+v\n", driver)
+
+				sensorDbObject.Driver = &driver
+				tx.Save(sensorDbObject)
+			} else {
+				log.Println("Driver found, updating URL.")
+				sensorDbObject.Driver.DownloadUrl = sensorDto.DriverUrl
+				if err := tx.Save(sensorDbObject.Driver).Error; err != nil {
+					log.Printf("Failed to update driver URL: %v", err)
+					tx.Rollback()
+					utils.JsonError(w, "Failed to update driver URL", http.StatusInternalServerError)
+					return
+				}
+			}
+		}
 	}
 
-	sensorUpdate := models.Sensor{
-		Alias:              &sensorDto.Alias,
-		Description:        sensorDto.Description,
-		MeasuremntInterval: intervalUpdateTime,
-	}
 
-	result := initPackage.Db.Model(sensorDbObject).Updates(sensorUpdate).Clauses(clause.Returning{})
-	if result.Error != nil {
-		utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
+	if err := tx.Commit().Error; err != nil {
+		utils.JsonError(w, "Transaction commit failed", http.StatusInternalServerError)
 		return
 	}
 
-	// Set the response header and encode the updated webhook object
+	// Return the updated array of sensorDtos
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(sensorDto); err != nil {
+	if err := json.NewEncoder(w).Encode(sensorDtos); err != nil {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
-		return
 	}
 }
+
 
 func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error) {
 	sensor := models.Sensor{
@@ -116,7 +158,7 @@ func FindSensorBySerialNum(serialNumber string) (*models.Sensor, error) {
 }
 func findSensorById(id uint) (*models.Sensor, error) {
 	var sensor models.Sensor
-	result := initPackage.Db.Preload("Measurements").First(&sensor, "id = ?", id)
+	result := initPackage.Db.Preload("Measurements").Preload("Driver").First(&sensor, "id = ?", id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -125,6 +167,12 @@ func findSensorById(id uint) (*models.Sensor, error) {
 
 // Maps a single Sensor to SensorDto
 func MapSensorToDTO(sensor models.Sensor) dtos.SensorDto {
+	var driverUrl string
+
+	if sensor.Driver != nil {
+		driverUrl = sensor.Driver.DownloadUrl
+	}
+
 	return dtos.SensorDto{
 		ID:                  sensor.ID,
 		SerialNumber:        sensor.SerialNumber,
@@ -132,6 +180,7 @@ func MapSensorToDTO(sensor models.Sensor) dtos.SensorDto {
 		Description:         sensor.Description,
 		MeasurementInterval: utils.DurationToTimeString(sensor.MeasuremntInterval),
 		Measurements:        sensor.Measurements,
+		DriverUrl:           driverUrl,
 	}
 }
 

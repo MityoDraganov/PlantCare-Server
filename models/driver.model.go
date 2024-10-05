@@ -4,8 +4,8 @@ import "gorm.io/gorm"
 
 type Driver struct {
 	gorm.Model
-	SensorID uint
 
+	DownloadUrl string `json:"downloadUrl"` // The URL to download the driver (software)
 
-	DownloadUrl string
+	Sensors []Sensor `gorm:"foreignKey:DriverID"` // One driver (software) can control many sensors
 }
