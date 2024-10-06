@@ -21,6 +21,7 @@ const (
 	HandleForecastAlert       Event = "forecastAlert"
 	HandleAttachSensor  Event = "handleAttachSensor"
 	HandleDetachSensor  Event = "handleDetachSensor"
+	UpdatedPot Event = "updatedPot"
 )
 
 type StatusResponse string

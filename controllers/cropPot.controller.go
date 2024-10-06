@@ -112,8 +112,6 @@ func RemoveCropPot(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"result": "success"})
 }
 
-
-
 // admin action
 func AddCropPot(w http.ResponseWriter, r *http.Request) {
 	token, err := utils.GenerateSecureToken(32)
@@ -149,7 +147,18 @@ func FindCropPotById(id string) (*models.CropPot, error) {
 
 func FindPotByToken(token string) (*models.CropPot, error) {
 	var cropPot models.CropPot
-	if err := initPackage.Db.Where("token = ?", token).First(&cropPot).Error; err != nil {
+	if err := initPackage.Db.
+		Preload("Sensors").
+		Preload("Sensors.Measurements").
+		Preload("Sensors.Driver").
+		Preload("Controls").
+		Preload("Controls.ActivePeriod").
+		Preload("Controls.Updates").
+		Preload("Controls.Condition").
+		Preload("Controls.Condition.DependentSensor").
+		Preload("Webhooks").
+		Preload("Webhooks.SubscribedEvents").
+		Where("token = ?", token).First(&cropPot).Error; err != nil {
 		return nil, err
 	}
 	return &cropPot, nil
@@ -202,5 +211,6 @@ func ToCropPotResponseDTO(cropPot models.CropPot) dtos.CropPotResponse {
 		Controls:   ToControlsDTO(cropPot.Controls),
 		Sensors:    ToSensorsDTO(cropPot.Sensors),
 		Webhooks:   ToWebhooksDTO(cropPot.Webhooks),
+		Status:     cropPot.Status,
 	}
 }

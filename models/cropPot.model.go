@@ -1,18 +1,26 @@
 package models
 
-import (
-	"gorm.io/gorm"
+import "gorm.io/gorm"
+
+type Status string
+
+const (
+	StatusOnline   Status = "online"
+	StatusUpdating Status = "updating"
+	StatusOffline  Status = "offline"
 )
 
 type CropPot struct {
 	gorm.Model
 	GroupID     *uint
-	IsPinned    bool `json:"isPinned"`
-	IsArchived  bool
 	Token       string `gorm:"size:255;uniqueIndex;not null"`
 	User        User   `gorm:"foreignKey:ClerkUserID;references:ClerkID"`
 	ClerkUserID *string
-	Alias       string `json:"alias" gorm:"size:255"`
+	Status      Status
+
+	Alias      string `json:"alias" gorm:"size:255"`
+	IsArchived bool
+	IsPinned   bool `json:"isPinned"`
 
 	Sensors  []Sensor
 	Webhooks []Webhook `gorm:"foreignKey:CropPotID"`

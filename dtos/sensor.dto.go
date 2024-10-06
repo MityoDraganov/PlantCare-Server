@@ -12,6 +12,7 @@ type SensorDto struct {
 	MeasurementInterval string  `json:"measurementInterval"`
 	Type                models.Type
 
+
 	DriverUrl           string  `json:"driverUrl"`
 	Measurements    []models.Measurement `json:"measurements"`
 }

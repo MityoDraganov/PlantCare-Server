@@ -71,3 +71,26 @@ func (cm *ConnectionManager) GetConnectionByKey(key string) (*wsTypes.Connection
     conn, exists := cm.Connections[key]
     return conn, exists
 }
+
+func (cm *ConnectionManager) RemoveConnectionByInstance(conn *wsTypes.Connection) bool {
+	cm.Mu.Lock()
+	defer cm.Mu.Unlock()
+
+	// Iterate through the Connections map to find the connection
+	for potID, c := range cm.Connections {
+		if c == conn {
+			delete(cm.Connections, potID)
+			return true // Successfully removed the connection
+		}
+	}
+	return false // Connection not found
+}
+
+func (cm *ConnectionManager) GetConnectionByOwner(clerkUserID string) (*wsTypes.Connection, bool) {
+    cm.Mu.RLock()
+    defer cm.Mu.RUnlock()
+
+    // Attempt to get the connection by the ClerkUserID key
+    conn, exists := cm.Connections[clerkUserID]
+    return conn, exists
+}

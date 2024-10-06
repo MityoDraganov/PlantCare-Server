@@ -1,6 +1,10 @@
 package websocket
 
 import (
+	"PlantCare/controllers"
+	"PlantCare/initPackage"
+	"PlantCare/models"
+	"PlantCare/websocket/connectionManager"
 	"PlantCare/websocket/eventHandlers"
 	"PlantCare/websocket/wsTypes"
 	"encoding/json"
@@ -13,8 +17,12 @@ import (
 )
 
 // Read messages from the WebSocket connection
-func HandleMessages(connection *wsTypes.Connection) {
-	defer connection.Conn.Close()
+func HandleMessages(connection *wsTypes.Connection, cropPotDbObject *models.CropPot) {
+	defer func() {
+		// Cleanup when done
+		close(connection.Send)
+		connection.Conn.Close() // Ensure the connection is closed
+	}()
 
 	rateLimiter := wsutils.NewRateLimiter(10, time.Hour) // Initialize RateLimiter with a hardcoded limit
 
@@ -22,6 +30,18 @@ func HandleMessages(connection *wsTypes.Connection) {
 		_, msg, err := connection.Conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Error while reading message:", err)
+			connectionManager.ConnManager.RemoveConnectionByInstance(connection)
+			if cropPotDbObject != nil {
+				cropPotDbObject.Status = models.StatusOffline
+				if err := initPackage.Db.Save(&cropPotDbObject).Error; err != nil {
+					fmt.Println("Error while updating pot connection status:", err)
+				}
+				ownerConnection, exists := connectionManager.ConnManager.GetConnectionByOwner(*cropPotDbObject.ClerkUserID)
+				if exists {
+			
+					wsutils.SendMessage(ownerConnection, "", wsTypes.UpdatedPot, controllers.ToCropPotResponseDTO(*cropPotDbObject))
+				}
+			}
 			break
 		}
 
