@@ -20,6 +20,10 @@ func DownloadFile(url, filePath string) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download file: received HTTP %d", resp.StatusCode)
+	}
+
 	// Create the output file where the downloaded content will be saved
 	out, err := os.Create(filePath)
 	if err != nil {

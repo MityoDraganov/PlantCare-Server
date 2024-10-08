@@ -22,6 +22,8 @@ const (
 	HandleAttachSensor  Event = "handleAttachSensor"
 	HandleDetachSensor  Event = "handleDetachSensor"
 	UpdatedPot Event = "updatedPot"
+
+	NotificationAlert = "notificationAlert"
 )
 
 type StatusResponse string

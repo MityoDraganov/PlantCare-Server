@@ -5,17 +5,26 @@ import (
 	"PlantCare/initPackage"
 	"PlantCare/models"
 	"PlantCare/utils"
+	"PlantCare/websocket/connectionManager"
+	"PlantCare/websocket/otaManager"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"gorm.io/gorm/clause"
 	"log"
 	"net/http"
+	"strconv"
+	"sync"
 	"time"
+
+	"gorm.io/gorm/clause"
 )
+
+var wg sync.WaitGroup
 
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	var sensorDtos []dtos.SensorUserRequestDto
-
+	var driverURLs []string
+	var potId uint
 	// Decode request body into an array of sensorDtos
 	err := json.NewDecoder(r.Body).Decode(&sensorDtos)
 	if err != nil {
@@ -40,7 +49,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			utils.JsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-	
+
 		var intervalUpdateTime time.Duration
 		if sensorDto.MeasurementInterval != "" {
 			t, err := time.Parse("15:04", sensorDto.MeasurementInterval)
@@ -52,13 +61,13 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			}
 			intervalUpdateTime = time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute
 		}
-	
+
 		sensorUpdate := models.Sensor{
-			Alias:              &sensorDto.Alias, 
+			Alias:              &sensorDto.Alias,
 			Description:        sensorDto.Description,
 			MeasuremntInterval: intervalUpdateTime,
 		}
-	
+
 		result := tx.Model(sensorDbObject).Updates(sensorUpdate).Clauses(clause.Returning{})
 		if result.Error != nil {
 			tx.Rollback()
@@ -66,14 +75,14 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
 			return
 		}
-	
+
 		// Handle DriverUrl updates safely
 		if sensorDto.DriverUrl != "" {
 			log.Println("Updating Driver URL...") // Log before attempting to update driver
 			if sensorDbObject.Driver == nil {
 				log.Println("Driver not found, creating new driver.")
 				driver := models.Driver{
-					
+
 					DownloadUrl: sensorDto.DriverUrl,
 				}
 				if err := tx.Create(&driver).Error; err != nil {
@@ -96,9 +105,33 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
+			potId = sensorDbObject.CropPotID
+			driverURLs = append(driverURLs, sensorDto.DriverUrl)
+			wg.Add(1)
 		}
 	}
 
+	go func() {
+		defer wg.Done() // Ensure that Done is called when the goroutine finishes
+
+		potIDStr := strconv.FormatUint(uint64(potId), 10)
+	
+
+		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
+		if !ok {
+			err := errors.New("connection not found for pot ID: " + potIDStr)
+			fmt.Println(err)
+
+			otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
+			utils.JsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+
+		if err := utils.UploadMultipleDrivers(driverURLs, connection); err != nil {
+			log.Printf("Failed to upload driver: %v", err)
+		}
+	}()
 
 	if err := tx.Commit().Error; err != nil {
 		utils.JsonError(w, "Transaction commit failed", http.StatusInternalServerError)
@@ -111,7 +144,6 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 	}
 }
-
 
 func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error) {
 	sensor := models.Sensor{

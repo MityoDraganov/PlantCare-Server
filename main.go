@@ -101,9 +101,9 @@ func main() {
 	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.DeleteWebhook).Methods("DELETE")
 
 	// --DRIVERS--
-	drivers := api.PathPrefix("/drivers").Subrouter()
-	drivers.Use(middlewears.PotMiddleware)
-	drivers.HandleFunc("/{potId}", controllers.UploadDriver).Methods("POST")
+	//drivers := api.PathPrefix("/drivers").Subrouter()
+	//drivers.Use(middlewears.PotMiddleware)
+	//drivers.HandleFunc("/{potId}", controllers.UploadDriver).Methods("POST")
 
 	// --ADMIN ACTIONS--
 	adminR := r.NewRoute().Subrouter()

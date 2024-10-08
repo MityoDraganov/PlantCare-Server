@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"PlantCare/models"
 	"PlantCare/utils"
 	"PlantCare/websocket/connectionManager"
+	"PlantCare/websocket/otaManager"
 	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
 	"PlantCare/websocket/wsUtils"
@@ -77,6 +79,37 @@ func PotMiddleware(w http.ResponseWriter, r *http.Request) {
 
 	// Add connection to the manager
 	connectionManager.ConnManager.AddConnection(potIDStr, connection)
+	isOtaPending := otaManager.OTAManager.IsOTAPending(potIDStr)
+	if isOtaPending {
+		go func() {
+			pendingOta, ok := otaManager.OTAManager.GetPendingOTA(potIDStr)
+
+
+			if !ok {
+				err := errors.New("error with the pending ota")
+				fmt.Println(err)
+	
+				utils.JsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+	
+		
+	
+			connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
+			if !ok {
+				err := errors.New("connection not found for pot ID: " + potIDStr)
+				fmt.Println(err)
+	
+				utils.JsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+	
+	
+			if err := utils.UploadMultipleDrivers(pendingOta.DriverURLs, connection); err != nil {
+				fmt.Printf("Failed to upload driver: %v", err)
+			}
+		}()
+	}
 
 	// Send a valid request response
 	wsutils.SendValidRequest(&connection, controllers.ToCropPotResponseDTO(*cropPotDbObject))
@@ -105,27 +138,6 @@ func SetupWebSocketRoutes(r *mux.Router) {
 
 	userWs.HandleFunc("/", userWsMiddlewear)
 
-}
-
-// JWKStore defines an interface for storing and retrieving JSON Web Keys.
-type JWKStore interface {
-	GetJWK() *clerk.JSONWebKey
-	SetJWK(*clerk.JSONWebKey)
-}
-
-// InMemoryJWKStore is a simple in-memory implementation of JWKStore.
-type InMemoryJWKStore struct {
-	jwk *clerk.JSONWebKey
-}
-
-// GetJWK retrieves the JSON Web Key.
-func (s *InMemoryJWKStore) GetJWK() *clerk.JSONWebKey {
-	return s.jwk
-}
-
-// SetJWK stores the JSON Web Key.
-func (s *InMemoryJWKStore) SetJWK(jwk *clerk.JSONWebKey) {
-	s.jwk = jwk
 }
 
 // UserWsMiddlewear verifies Clerk session tokens for WebSocket connections and extracts user ID.
@@ -246,4 +258,27 @@ func userWsMiddlewear(w http.ResponseWriter, r *http.Request) {
 // NewInMemoryJWKStore creates a new in-memory JWK store.
 func NewInMemoryJWKStore() *InMemoryJWKStore {
 	return &InMemoryJWKStore{}
+}
+
+
+
+// JWKStore defines an interface for storing and retrieving JSON Web Keys.
+type JWKStore interface {
+	GetJWK() *clerk.JSONWebKey
+	SetJWK(*clerk.JSONWebKey)
+}
+
+// InMemoryJWKStore is a simple in-memory implementation of JWKStore.
+type InMemoryJWKStore struct {
+	jwk *clerk.JSONWebKey
+}
+
+// GetJWK retrieves the JSON Web Key.
+func (s *InMemoryJWKStore) GetJWK() *clerk.JSONWebKey {
+	return s.jwk
+}
+
+// SetJWK stores the JSON Web Key.
+func (s *InMemoryJWKStore) SetJWK(jwk *clerk.JSONWebKey) {
+	s.jwk = jwk
 }
