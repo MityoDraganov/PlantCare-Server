@@ -15,6 +15,7 @@ type CropPotResponse struct {
 
 type CropPotRequest struct {
 	Alias string `json:"alias" validate:"required,min=8"`
+	IsPinned bool `json:"isPinned"`
 }
 
 type CreateCropPot struct {

@@ -67,6 +67,11 @@ func main() {
 		log.Fatal("failed to migrate database:", err)
 	}
 
+	// Set all crop pots to offline at startup
+	if err := controllers.SetAllPotsOffline(); err != nil {
+		log.Fatal("failed to set crop pots to offline on startup:", err)
+	}
+
 	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister)
 
 	// PROTECTED ROUTES

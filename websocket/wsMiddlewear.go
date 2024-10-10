@@ -83,35 +83,29 @@ func PotMiddleware(w http.ResponseWriter, r *http.Request) {
 	if isOtaPending {
 		go func() {
 			pendingOta, ok := otaManager.OTAManager.GetPendingOTA(potIDStr)
-
-
 			if !ok {
 				err := errors.New("error with the pending ota")
 				fmt.Println(err)
-	
+
 				utils.JsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-	
-		
-	
+
 			connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
 			if !ok {
 				err := errors.New("connection not found for pot ID: " + potIDStr)
 				fmt.Println(err)
-	
+
 				utils.JsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-	
-	
+
 			if err := utils.UploadMultipleDrivers(pendingOta.DriverURLs, connection); err != nil {
 				fmt.Printf("Failed to upload driver: %v", err)
 			}
 		}()
 	}
 
-	// Send a valid request response
 	wsutils.SendValidRequest(&connection, controllers.ToCropPotResponseDTO(*cropPotDbObject))
 
 	ownerConnection, exists := connectionManager.ConnManager.GetConnectionByOwner(*cropPotDbObject.ClerkUserID)
@@ -259,8 +253,6 @@ func userWsMiddlewear(w http.ResponseWriter, r *http.Request) {
 func NewInMemoryJWKStore() *InMemoryJWKStore {
 	return &InMemoryJWKStore{}
 }
-
-
 
 // JWKStore defines an interface for storing and retrieving JSON Web Keys.
 type JWKStore interface {

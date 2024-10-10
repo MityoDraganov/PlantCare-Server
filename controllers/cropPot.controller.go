@@ -14,8 +14,20 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"github.com/gorilla/mux"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+func SetAllPotsOffline() error {
+    db := initPackage.Db
+    if err := db.Session(&gorm.Session{AllowGlobalUpdate: true}).
+        Model(&models.CropPot{}).
+        Update("status", models.StatusOffline).Error; err != nil {
+        return fmt.Errorf("failed to set all pots to offline: %w", err)
+    }
+    return nil
+}
+
 
 func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -70,11 +82,14 @@ func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 
 func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 	var cropPotDto dtos.CropPotRequest
+
 	err := json.NewDecoder(r.Body).Decode(&cropPotDto)
 	if err != nil {
 		utils.JsonError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	fmt.Printf("%+v\n", cropPotDto)
 	params := mux.Vars(r)
 	id := params["potId"]
 
@@ -84,7 +99,16 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	initPackage.Db.Model(&cropPotDBObject).Clauses(clause.Returning{}).Updates(cropPotDto)
+	initPackage.Db.Model(&cropPotDBObject).Updates(cropPotDto)
+
+	if (!cropPotDto.IsPinned){
+		cropPotDBObject.IsPinned = false
+	}
+
+	if err := initPackage.Db.Save(&cropPotDBObject).Clauses(clause.Returning{}).Error; err != nil {
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cropPotDBObject)
@@ -208,6 +232,7 @@ func ToCropPotResponseDTO(cropPot models.CropPot) dtos.CropPotResponse {
 		ID:         cropPot.ID,
 		Alias:      cropPot.Alias,
 		IsArchived: cropPot.IsArchived,
+		IsPinned: cropPot.IsPinned,
 		Controls:   ToControlsDTO(cropPot.Controls),
 		Sensors:    ToSensorsDTO(cropPot.Sensors),
 		Webhooks:   ToWebhooksDTO(cropPot.Webhooks),

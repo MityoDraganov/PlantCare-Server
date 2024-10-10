@@ -51,12 +51,14 @@ func SeedDatabase(db *gorm.DB) error {
 			Alias:       "Herb Garden",
 			IsArchived:  false,
 			ClerkUserID: &users[0].ClerkID,
+			Status: models.StatusOffline,
 		},
 		{
 			Token:       "pot_2",
 			Alias:       "Vegetable Bed",
 			IsArchived:  false,
 			ClerkUserID: &users[0].ClerkID,
+			Status: models.StatusOffline,
 		},
 	}
 	if err := db.Create(&cropPots).Error; err != nil {
