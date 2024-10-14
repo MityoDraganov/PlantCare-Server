@@ -11,6 +11,7 @@ type SensorDto struct {
 	Description         *string `json:"description"`
 	MeasurementInterval string  `json:"measurementInterval"`
 	Type                models.Type
+	IsAttached  bool `json:"isAttached"`
 
 
 	DriverUrl           string  `json:"driverUrl"`

@@ -7,28 +7,28 @@ import (
 	"PlantCare/utils"
 	"PlantCare/websocket/connectionManager"
 	"PlantCare/websocket/otaManager"
+	"PlantCare/websocket/wsTypes"
+	wsutils "PlantCare/websocket/wsUtils"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
+	"github.com/clerk/clerk-sdk-go/v2"
 	"gorm.io/gorm/clause"
 )
-
-var wg sync.WaitGroup
 
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	var sensorDtos []dtos.SensorUserRequestDto
 	var driverURLs []string
 	var potId uint
-	// Decode request body into an array of sensorDtos
+
 	err := json.NewDecoder(r.Body).Decode(&sensorDtos)
 	if err != nil {
-		log.Println(err) // Use log.Println for non-fatal errors
+		log.Println(err)
 		utils.JsonError(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
@@ -45,7 +45,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		sensorDbObject, err := findSensorById(uint(sensorDto.ID))
 		if err != nil {
 			tx.Rollback()
-			log.Printf("Sensor not found: %v", err) // Improved logging
+			log.Printf("Sensor not found: %v", err)
 			utils.JsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
@@ -55,7 +55,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			t, err := time.Parse("15:04", sensorDto.MeasurementInterval)
 			if err != nil {
 				tx.Rollback()
-				log.Printf("Invalid measurement interval format: %s", err.Error()) // Improved logging
+				log.Printf("Invalid measurement interval format: %s", err.Error())
 				utils.JsonError(w, fmt.Sprintf("Invalid measurement interval format: %s", err.Error()), http.StatusBadRequest)
 				return
 			}
@@ -71,28 +71,24 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		result := tx.Model(sensorDbObject).Updates(sensorUpdate).Clauses(clause.Returning{})
 		if result.Error != nil {
 			tx.Rollback()
-			log.Printf("Failed to update sensor: %v", result.Error) // Improved logging
+			log.Printf("Failed to update sensor: %v", result.Error)
 			utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
 			return
 		}
 
-		// Handle DriverUrl updates safely
 		if sensorDto.DriverUrl != "" {
-			log.Println("Updating Driver URL...") // Log before attempting to update driver
+			log.Println("Updating Driver URL...")
 			if sensorDbObject.Driver == nil {
 				log.Println("Driver not found, creating new driver.")
 				driver := models.Driver{
-
 					DownloadUrl: sensorDto.DriverUrl,
 				}
 				if err := tx.Create(&driver).Error; err != nil {
-					log.Printf("Failed to create new driver: %v", err) // Improved logging
+					log.Printf("Failed to create new driver: %v", err)
 					tx.Rollback()
 					utils.JsonError(w, "Failed to create new driver", http.StatusInternalServerError)
 					return
 				}
-				fmt.Printf("Driver object: %+v\n", driver)
-
 				sensorDbObject.Driver = &driver
 				tx.Save(sensorDbObject)
 			} else {
@@ -107,32 +103,41 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			}
 			potId = sensorDbObject.CropPotID
 			driverURLs = append(driverURLs, sensorDto.DriverUrl)
-			wg.Add(1)
 		}
 	}
 
 	go func() {
-		defer wg.Done() // Ensure that Done is called when the goroutine finishes
-
-		potIDStr := strconv.FormatUint(uint64(potId), 10)
-	
-
-		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
+		claims, ok := clerk.SessionClaimsFromContext(r.Context())
+		clerkUserID := claims.Subject
+		userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(clerkUserID)
 		if !ok {
-			err := errors.New("connection not found for pot ID: " + potIDStr)
-			fmt.Println(err)
-
-			otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
-			utils.JsonError(w, err.Error(), http.StatusBadRequest)
+			fmt.Println("Error extracting session claims")
+			utils.JsonError(w, "Unauthorized: unable to extract session claims", http.StatusUnauthorized)
 			return
 		}
 
+		potIDStr := strconv.FormatUint(uint64(potId), 10)
+		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
+		if !ok {
+			err := errors.New("connection not found for pot ID: " + potIDStr + "! Adding update to pendings.")
+			if isExisting {
+				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
+			}
+			otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
+			return
+		}
 
 		if err := utils.UploadMultipleDrivers(driverURLs, connection); err != nil {
 			log.Printf("Failed to upload driver: %v", err)
+
+			if isExisting {
+				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
+			}
+			return
 		}
 	}()
 
+	// Commit the transaction after the OTA operation
 	if err := tx.Commit().Error; err != nil {
 		utils.JsonError(w, "Transaction commit failed", http.StatusInternalServerError)
 		return
@@ -213,6 +218,7 @@ func MapSensorToDTO(sensor models.Sensor) dtos.SensorDto {
 		MeasurementInterval: utils.DurationToTimeString(sensor.MeasuremntInterval),
 		Measurements:        sensor.Measurements,
 		DriverUrl:           driverUrl,
+		IsAttached:          sensor.IsAttached,
 	}
 }
 

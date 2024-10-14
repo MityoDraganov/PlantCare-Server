@@ -1,9 +1,11 @@
 package cronjobs
 
 import (
+	"PlantCare/controllers"
 	"PlantCare/services"
 	"PlantCare/websocket/wsTypes"
 	wsutils "PlantCare/websocket/wsUtils"
+	"encoding/json"
 	"log"
 )
 
@@ -22,6 +24,12 @@ func CheckAndSendAlerts(connection wsTypes.Connection) {
 		Message:   forecast,
 	}
 
+	alertString, err := json.Marshal(alert)
+	if err != nil {
+		log.Fatalf("Failed to marshal alert: %v", err)
+	}
+
+	controllers.CreateMessage(userID, string(alertString))
 	sendAlertToUsers(alert, &connection)
 
 }

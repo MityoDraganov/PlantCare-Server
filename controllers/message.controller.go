@@ -31,12 +31,11 @@ func GetMessagesForUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateMessage(clerkUserId string, data string) error {
-	fmt.Println("create")
 	title := "Sensor issue"
 	message := models.Message{
 		Title: &title,
 		ClerkUserID: clerkUserId,
-		Text: data,
+		Data: data,
 		IsRead: false,
 	}
 

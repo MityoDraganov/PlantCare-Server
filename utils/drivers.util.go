@@ -13,34 +13,34 @@ import (
 	"strings"
 )
 
-func UploadMultipleDrivers(driverURLs []string, conn *wsTypes.Connection) *error {
+func UploadMultipleDrivers(driverURLs []string, conn *wsTypes.Connection) error {
 	// Prepare paths for drivers and repositories
 	driverZipFilePath := "./driver.zip"
 	repoZipFilePath := "./repo.zip"
-	driverExtractDir := "./extracted/repo/PlantCare-esp32-main/lib"
+	driverExtractDir := "./extracted/repo/PlantCare-esp32-main/src/drivers"
 	repoExtractDir := "./extracted/repo"
 
 	// Clean up any previous artifacts
 	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
-		return &err
+		return err
 	}
 
 	// Create directories for extraction
 	if err := os.MkdirAll(driverExtractDir, os.ModePerm); err != nil {
-		return &err
+		return err
 	}
 	if err := os.MkdirAll(repoExtractDir, os.ModePerm); err != nil {
-		return &err
+		return err
 	}
 
 	// Download the main repo ZIP
 	if err := DownloadFile("https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/main.zip", repoZipFilePath); err != nil {
-		return &err
+		return err
 	}
 
 	// Unzip the main repository
 	if err := Unzip(repoZipFilePath, repoExtractDir); err != nil {
-		return &err
+		return err
 	}
 
 	// Download and extract all the drivers sequentially for the single pot
@@ -48,18 +48,18 @@ func UploadMultipleDrivers(driverURLs []string, conn *wsTypes.Connection) *error
 		// Convert the GitHub URL to the ZIP file download link
 		zipUrl, err := convertGitHubURLToZip(driverURL)
 		if err != nil {
-			return &err
+			return err
 		}
 
 		// Download the driver ZIP file
 		if err := DownloadFile(zipUrl, driverZipFilePath); err != nil {
-			return &err
+			return err
 		}
 
 		// Extract the driver to the correct directory
 		if err := Unzip(driverZipFilePath, driverExtractDir); err != nil {
 			fmt.Println(err)
-			return &err
+			return err
 		}
 	}
 
@@ -68,12 +68,12 @@ func UploadMultipleDrivers(driverURLs []string, conn *wsTypes.Connection) *error
 	// Perform the OTA upload using the repoExtractDir, which now includes all the drivers
 	if err := uploadFirmwareOTA(repoExtractDir, conn.IP); err != nil {
 		fmt.Println(err)
-		return &err
+		return err
 	}
 
 	// Clean up after the upload process
 	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
-		return &err
+		return err
 	}
 
 	return nil

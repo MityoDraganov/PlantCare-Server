@@ -235,7 +235,7 @@ func userWsMiddlewear(w http.ResponseWriter, r *http.Request) {
 	for _, message := range messages {
 		messageDto := wsDtos.NotificationDto{
 			Title:     utils.CoalesceString(message.Title),
-			Text:      message.Text,
+			Data:      message.Data,
 			IsRead:    message.IsRead,
 			Timestamp: message.CreatedAt,
 		}

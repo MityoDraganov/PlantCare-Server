@@ -128,7 +128,6 @@ func SendMessages(connection *wsTypes.Connection) {
 //     return nil
 // }
 
-
 func SendMessage(connection *wsTypes.Connection, statusResponse wsTypes.StatusResponse, event wsTypes.Event, data interface{}) error {
     // Check if at least one of statusResponse or event is provided
     if statusResponse == "" && event == "" {
@@ -139,58 +138,65 @@ func SendMessage(connection *wsTypes.Connection, statusResponse wsTypes.StatusRe
     isRead := false
     timestamp := time.Now()
 
-    // Use reflection to check for fields "IsRead" and "Timestamp"
-    val := reflect.ValueOf(data)
-    typ := reflect.TypeOf(data)
+    // Handle case where data is an error
+    var jsonData []byte
+    var err error
 
-    // If data is a pointer, get the value it points to
-    if val.Kind() == reflect.Ptr {
-        val = val.Elem()
-        typ = typ.Elem()
-    }
+    if errData, ok := data.(error); ok {
+        // Convert error to a string and include it in the JSON payload
+        jsonData, err = json.Marshal(map[string]string{
+            "error": errData.Error(),
+        })
+        if err != nil {
+            fmt.Println("Error marshaling error data:", err)
+            return err
+        }
+    } else {
+        // Normal data handling (same as before)
+        val := reflect.ValueOf(data)
+        typ := reflect.TypeOf(data)
 
-    // Ensure the underlying value is a struct before proceeding
-    if val.Kind() != reflect.Struct {
-        return fmt.Errorf("data must be a struct or a pointer to a struct")
-    }
-
-    // Create a new map to hold the fields, excluding "IsRead" and "Timestamp"
-    resultMap := make(map[string]interface{})
-
-    // Iterate over the struct fields
-    for i := 0; i < val.NumField(); i++ {
-        field := val.Field(i)
-        fieldType := typ.Field(i)
-        fieldName := fieldType.Name
-
-        // Extract the JSON tag if it exists
-        jsonTag := fieldType.Tag.Get("json")
-        if jsonTag == "" {
-            jsonTag = fieldName // fallback to field name if no JSON tag
+        // If data is a pointer, get the value it points to
+        if val.Kind() == reflect.Ptr {
+            val = val.Elem()
+            typ = typ.Elem()
         }
 
-        // Handle IsRead and Timestamp separately, exclude them from the map
-        if fieldName == "IsRead" && field.Kind() == reflect.Bool {
-            isRead = field.Bool()
-            continue
+        if val.Kind() != reflect.Struct {
+            return fmt.Errorf("data must be a struct or a pointer to a struct")
         }
 
-        if fieldName == "Timestamp" && field.Type() == reflect.TypeOf(time.Time{}) {
-            timestamp = field.Interface().(time.Time)
-            continue
+        resultMap := make(map[string]interface{})
+        for i := 0; i < val.NumField(); i++ {
+            field := val.Field(i)
+            fieldType := typ.Field(i)
+            fieldName := fieldType.Name
+
+            jsonTag := fieldType.Tag.Get("json")
+            if jsonTag == "" {
+                jsonTag = fieldName // fallback to field name if no JSON tag
+            }
+
+            if fieldName == "IsRead" && field.Kind() == reflect.Bool {
+                isRead = field.Bool()
+                continue
+            }
+
+            if fieldName == "Timestamp" && field.Type() == reflect.TypeOf(time.Time{}) {
+                timestamp = field.Interface().(time.Time)
+                continue
+            }
+
+            if fieldType.IsExported() {
+                resultMap[jsonTag] = field.Interface()
+            }
         }
 
-        // Add all other fields to the result map using the JSON tag
-        if fieldType.IsExported() {
-            resultMap[jsonTag] = field.Interface()
+        jsonData, err = json.Marshal(resultMap)
+        if err != nil {
+            fmt.Println("Error marshaling data:", err)
+            return err
         }
-    }
-
-    // Convert the result map (with IsRead and Timestamp removed) to JSON
-    jsonData, err := json.Marshal(resultMap)
-    if err != nil {
-        fmt.Println("Error marshaling data:", err)
-        return err
     }
 
     // Create the message

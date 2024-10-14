@@ -18,22 +18,23 @@ const (
 type Event string
 
 const (
-	HandleForecastAlert       Event = "forecastAlert"
+	HandleForecastAlert Event = "forecastAlert"
 	HandleAttachSensor  Event = "handleAttachSensor"
 	HandleDetachSensor  Event = "handleDetachSensor"
-	UpdatedPot Event = "updatedPot"
+	UpdatedPot          Event = "updatedPot"
 
-	NotificationAlert = "notificationAlert"
+	NotificationAlert Event = "notificationAlert"
+	AsyncError        Event = "asyncError"
 )
 
 type StatusResponse string
 
 const (
-	SensorConnected  StatusResponse = "sensorConnected"
-	SensorDetached   StatusResponse = "sensorDetached"
-	SensorNotFound   StatusResponse = "sensorNotFound"
-	SensorAdded      StatusResponse = "sensorAdded"
-	DriverRequired   StatusResponse = "driverRequired"
+	SensorConnected StatusResponse = "sensorConnected"
+	SensorDetached  StatusResponse = "sensorDetached"
+	SensorNotFound  StatusResponse = "sensorNotFound"
+	SensorAdded     StatusResponse = "sensorAdded"
+	DriverRequired  StatusResponse = "driverRequired"
 
 	MessageFound StatusResponse = "messageFound"
 )
@@ -47,11 +48,11 @@ type Connection struct {
 }
 
 type Message struct {
-	StatusResponse *StatusResponse      `json:"statusResponse,omitempty"`
-	Event          *Event               `json:"event,omitempty"`
-	Data           json.RawMessage      `json:"data"`
-	Timestamp      time.Time            `json:"timestamp"`
-	IsRead bool `json:"isRead"`
+	StatusResponse *StatusResponse `json:"statusResponse,omitempty"`
+	Event          *Event          `json:"event,omitempty"`
+	Data           json.RawMessage `json:"data"`
+	Timestamp      time.Time       `json:"timestamp"`
+	IsRead         bool            `json:"isRead"`
 }
 
 type WsResponse struct {
@@ -70,5 +71,5 @@ const (
 )
 
 type Alert struct {
-	Message   interface{}
+	Message interface{}
 }
