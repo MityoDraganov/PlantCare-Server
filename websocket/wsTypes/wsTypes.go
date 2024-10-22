@@ -24,7 +24,10 @@ const (
 	UpdatedPot          Event = "updatedPot"
 
 	NotificationAlert Event = "notificationAlert"
-	AsyncError        Event = "asyncError"
+
+	AsyncError   Event = "asyncError"
+	AsyncPromise Event = "asyncPromise"
+	HandleSensorDataRequest Event = "HandleSensorDataRequest"
 )
 
 type StatusResponse string

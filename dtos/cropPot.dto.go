@@ -11,11 +11,13 @@ type CropPotResponse struct {
 	Sensors    []SensorDto       `json:"sensors"`
 	Webhooks   []WebhookResponse `json:"webhooks"`
 	Status     models.Status     `json:"status"`
+	MeasurementInterval string  `json:"measurementInterval"`
 }
 
 type CropPotRequest struct {
 	Alias string `json:"alias" validate:"required,min=8"`
 	IsPinned bool `json:"isPinned"`
+	MeasurementInterval string  `json:"measurementInterval"`
 }
 
 type CreateCropPot struct {

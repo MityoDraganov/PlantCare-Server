@@ -15,7 +15,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	"gorm.io/gorm/clause"
@@ -50,22 +49,10 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		var intervalUpdateTime time.Duration
-		if sensorDto.MeasurementInterval != "" {
-			t, err := time.Parse("15:04", sensorDto.MeasurementInterval)
-			if err != nil {
-				tx.Rollback()
-				log.Printf("Invalid measurement interval format: %s", err.Error())
-				utils.JsonError(w, fmt.Sprintf("Invalid measurement interval format: %s", err.Error()), http.StatusBadRequest)
-				return
-			}
-			intervalUpdateTime = time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute
-		}
 
 		sensorUpdate := models.Sensor{
 			Alias:              &sensorDto.Alias,
 			Description:        sensorDto.Description,
-			MeasuremntInterval: intervalUpdateTime,
 		}
 
 		result := tx.Model(sensorDbObject).Updates(sensorUpdate).Clauses(clause.Returning{})
@@ -108,13 +95,13 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		claims, ok := clerk.SessionClaimsFromContext(r.Context())
-		clerkUserID := claims.Subject
-		userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(clerkUserID)
 		if !ok {
 			fmt.Println("Error extracting session claims")
 			utils.JsonError(w, "Unauthorized: unable to extract session claims", http.StatusUnauthorized)
 			return
 		}
+		clerkUserID := claims.Subject
+		userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(clerkUserID)
 
 		potIDStr := strconv.FormatUint(uint64(potId), 10)
 		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
@@ -126,6 +113,10 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
 			return
 		}
+		if isExisting {
+			wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
+		}
+		fmt.Println("HERE 123")
 
 		if err := utils.UploadMultipleDrivers(driverURLs, connection); err != nil {
 			log.Printf("Failed to upload driver: %v", err)
@@ -158,8 +149,6 @@ func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error)
 
 		Alias:       sensorDto.Alias,
 		Description: sensorDto.Description,
-
-		MeasuremntInterval: time.Hour,
 	}
 
 	result := initPackage.Db.Create(&sensor).Clauses(clause.Returning{})
@@ -215,7 +204,6 @@ func MapSensorToDTO(sensor models.Sensor) dtos.SensorDto {
 		SerialNumber:        sensor.SerialNumber,
 		Alias:               *sensor.Alias,
 		Description:         sensor.Description,
-		MeasurementInterval: utils.DurationToTimeString(sensor.MeasuremntInterval),
 		Measurements:        sensor.Measurements,
 		DriverUrl:           driverUrl,
 		IsAttached:          sensor.IsAttached,

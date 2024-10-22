@@ -23,12 +23,18 @@ func StartCronJobs() {
 		}
 
 	})
-
 	if err != nil {
 		log.Fatalf("Error scheduling cron job: %v", err)
 	}
 
-	
+	_, err = c.AddFunc("@every 5m", func() {
+		RequestAllSensorData()
+
+	})
+
+	if err != nil {
+		log.Fatalf("Error scheduling cron job: %v", err)
+	}
 
 	// Start the Cron scheduler
 	c.Start()

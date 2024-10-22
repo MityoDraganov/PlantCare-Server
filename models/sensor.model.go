@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
@@ -24,7 +22,6 @@ type Sensor struct {
 
 	Alias              *string       `json:"alias"`
 	Description        *string       `json:"description"`
-	MeasuremntInterval time.Duration `json:"measuremntInterval"`
 
 	Measurements []Measurement
 	IsOfficial   bool

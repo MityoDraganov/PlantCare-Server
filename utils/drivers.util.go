@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func UploadMultipleDrivers(driverURLs []string, conn *wsTypes.Connection) error {
+func UploadMultipleDrivers(driverURLs []string, potConn *wsTypes.Connection) error {
 	// Prepare paths for drivers and repositories
 	driverZipFilePath := "./driver.zip"
 	repoZipFilePath := "./repo.zip"
@@ -66,9 +66,9 @@ func UploadMultipleDrivers(driverURLs []string, conn *wsTypes.Connection) error 
 
 
 	// Perform the OTA upload using the repoExtractDir, which now includes all the drivers
-	if err := uploadFirmwareOTA(repoExtractDir, conn.IP); err != nil {
-		fmt.Println(err)
-		return err
+	if err := uploadFirmwareOTA(repoExtractDir, potConn.IP); err != nil {
+		customErr := errors.New("failed to upload driver OTA! Check pot connectivity")
+		return customErr
 	}
 
 	// Clean up after the upload process
@@ -141,7 +141,6 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 
 
 	if err := uploadFirmwareOTA(repoExtractDir, connection.IP); err != nil {
-		fmt.Println(err)
 		return &err
 	}
 

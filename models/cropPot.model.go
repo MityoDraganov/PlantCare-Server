@@ -1,6 +1,10 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Status string
 
@@ -25,4 +29,6 @@ type CropPot struct {
 	Sensors  []Sensor
 	Webhooks []Webhook `gorm:"foreignKey:CropPotID"`
 	Controls []Control `gorm:"foreignKey:CropPotID"`
+
+	MeasuremntInterval time.Duration `json:"measuremntInterval"`
 }

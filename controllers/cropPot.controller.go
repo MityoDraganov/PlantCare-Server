@@ -3,8 +3,10 @@ package controllers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"reflect"
+	"time"
 
 	"PlantCare/dtos"
 	"PlantCare/initPackage"
@@ -19,15 +21,14 @@ import (
 )
 
 func SetAllPotsOffline() error {
-    db := initPackage.Db
-    if err := db.Session(&gorm.Session{AllowGlobalUpdate: true}).
-        Model(&models.CropPot{}).
-        Update("status", models.StatusOffline).Error; err != nil {
-        return fmt.Errorf("failed to set all pots to offline: %w", err)
-    }
-    return nil
+	db := initPackage.Db
+	if err := db.Session(&gorm.Session{AllowGlobalUpdate: true}).
+		Model(&models.CropPot{}).
+		Update("status", models.StatusOffline).Error; err != nil {
+		return fmt.Errorf("failed to set all pots to offline: %w", err)
+	}
+	return nil
 }
-
 
 func GetCropPotsForUser(w http.ResponseWriter, r *http.Request) {
 	claims, ok := clerk.SessionClaimsFromContext(r.Context())
@@ -99,9 +100,27 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	initPackage.Db.Model(&cropPotDBObject).Updates(cropPotDto)
+	var intervalUpdateTime time.Duration
+	if cropPotDto.MeasurementInterval != "" {
+		t, err := time.Parse("15:04", cropPotDto.MeasurementInterval)
+		if err != nil {
+			log.Printf("Invalid measurement interval format: %s", err.Error())
+			utils.JsonError(w, fmt.Sprintf("Invalid measurement interval format: %s", err.Error()), http.StatusBadRequest)
+			return
+		}
+		intervalUpdateTime = time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute
+	}
 
-	if (!cropPotDto.IsPinned){
+	potUpdate := models.CropPot{
+		Alias:              cropPotDto.Alias,
+		IsPinned:        cropPotDto.IsPinned,
+		MeasuremntInterval: intervalUpdateTime,
+	}
+
+
+	initPackage.Db.Model(&cropPotDBObject).Updates(potUpdate)
+
+	if !cropPotDto.IsPinned {
 		cropPotDBObject.IsPinned = false
 	}
 
@@ -162,7 +181,10 @@ func AddCropPot(w http.ResponseWriter, r *http.Request) {
 func FindCropPotById(id string) (*models.CropPot, error) {
 
 	var cropPot models.CropPot
-	result := initPackage.Db.First(&cropPot, "id = ?", id)
+	result := initPackage.Db.
+		Preload("Sensors").
+		Preload("Sensors.Measurements").
+		First(&cropPot, "id = ?", id)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -232,10 +254,11 @@ func ToCropPotResponseDTO(cropPot models.CropPot) dtos.CropPotResponse {
 		ID:         cropPot.ID,
 		Alias:      cropPot.Alias,
 		IsArchived: cropPot.IsArchived,
-		IsPinned: cropPot.IsPinned,
+		IsPinned:   cropPot.IsPinned,
 		Controls:   ToControlsDTO(cropPot.Controls),
 		Sensors:    ToSensorsDTO(cropPot.Sensors),
 		Webhooks:   ToWebhooksDTO(cropPot.Webhooks),
 		Status:     cropPot.Status,
+		MeasurementInterval: utils.DurationToTimeString(cropPot.MeasuremntInterval),
 	}
 }
