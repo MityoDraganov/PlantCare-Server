@@ -7,7 +7,6 @@ import (
 	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
 	wsutils "PlantCare/websocket/wsUtils"
-	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -19,7 +18,7 @@ func RequestAllSensorData() {
 
     // Get all active crop pot connections
     connections := connectionManager.ConnManager.GetConnectionsByRole(wsTypes.PotRole)
-    
+    fmt.Println(connections)
     for _, connection := range connections {
         // Retrieve the crop pot ID from the WebSocket connection context
         cropPotID := connection.Context.Value(wsTypes.CropPotIDKey).(string)
@@ -34,17 +33,15 @@ func RequestAllSensorData() {
         // Get the measurement interval from the crop pot details
         if cropPot.MeasuremntInterval > 0 {
             lastMeasurementTime, err := services.GetLastMeasurementTimeFromSensors(cropPot.Sensors)
-
+			fmt.Println(lastMeasurementTime)
 			if err != nil {
 				fmt.Println("Error getting lastMeasurementTime")
 				return;
 			}
 
             if time.Since(lastMeasurementTime) >= cropPot.MeasuremntInterval {
-                // Send the readAllSensorData command if the measurement interval has passed
+				fmt.Println("sendReadAllSensorDataCommand")
                 sendReadAllSensorDataCommand(connection, cropPotID)
-            } else {
-                log.Printf("Skipping sensor data request for crop pot %s. Interval not met.", cropPotID)
             }
         }
     }
@@ -56,15 +53,9 @@ func sendReadAllSensorDataCommand(connection *wsTypes.Connection, cropPotID stri
         Command: "readAllSensorData",
     }
 
-    // Marshal the command into JSON
-    commandBytes, err := json.Marshal(command)
-    if err != nil {
-        log.Printf("Failed to marshal sensor command for crop pot %s: %v", cropPotID, err)
-        return
-    }
 
     // Send the command via WebSocket
-    err = wsutils.SendMessage(connection, "", wsTypes.HandleSensorDataRequest, commandBytes)
+    err := wsutils.SendMessage(connection, "", wsTypes.HandleSensorDataRequest, command)
     if err != nil {
         log.Printf("Failed to send sensor data request to crop pot %s: %v", cropPotID, err)
         return

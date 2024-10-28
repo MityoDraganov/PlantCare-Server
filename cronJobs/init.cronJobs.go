@@ -27,7 +27,7 @@ func StartCronJobs() {
 		log.Fatalf("Error scheduling cron job: %v", err)
 	}
 
-	_, err = c.AddFunc("@every 5m", func() {
+	_, err = c.AddFunc("@every 1m", func() {
 		RequestAllSensorData()
 
 	})

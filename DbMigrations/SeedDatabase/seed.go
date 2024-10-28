@@ -52,6 +52,7 @@ func SeedDatabase(db *gorm.DB) error {
 			IsArchived:  false,
 			ClerkUserID: &users[0].ClerkID,
 			Status: models.StatusOffline,
+			MeasuremntInterval: time.Hour,
 		},
 		{
 			Token:       "pot_2",
@@ -59,6 +60,7 @@ func SeedDatabase(db *gorm.DB) error {
 			IsArchived:  false,
 			ClerkUserID: &users[0].ClerkID,
 			Status: models.StatusOffline,
+			MeasuremntInterval: time.Hour,
 		},
 	}
 	if err := db.Create(&cropPots).Error; err != nil {
@@ -97,7 +99,6 @@ func SeedDatabase(db *gorm.DB) error {
 			SerialNumber:       "sensor_1",
 			Alias:              stringPtr("Temperature Sensor"),
 			IsOfficial:         true,
-			MeasuremntInterval: time.Hour,
 			Type:               models.TempType,
 		},
 		{
@@ -105,7 +106,6 @@ func SeedDatabase(db *gorm.DB) error {
 			SerialNumber:       "sensor_2",
 			Alias:              stringPtr("Moisture Sensor"),
 			IsOfficial:         true,
-			MeasuremntInterval: 2 * time.Hour,
 			Type:               models.TempType,
 		},
 		{
@@ -113,7 +113,6 @@ func SeedDatabase(db *gorm.DB) error {
 			SerialNumber:       "sensor_3",
 			Alias:              stringPtr("Light Sensor"),
 			IsOfficial:         true,
-			MeasuremntInterval: time.Hour,
 			Type:               models.TempType,
 		},
 	}
