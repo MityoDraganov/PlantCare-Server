@@ -62,6 +62,7 @@ func main() {
 		&models.Update{},
 		&models.ActivePeriod{},
 		&models.Message{},
+		&models.PinnedCard{},
 	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
@@ -109,6 +110,13 @@ func main() {
 	//drivers := api.PathPrefix("/drivers").Subrouter()
 	//drivers.Use(middlewears.PotMiddleware)
 	//drivers.HandleFunc("/{potId}", controllers.UploadDriver).Methods("POST")
+
+	// --PINNED CARDS
+	pinnedCards := api.PathPrefix("/pinnedCards").Subrouter()
+	webhooks.Use(middlewears.PotMiddleware)
+	pinnedCards.HandleFunc("/{potId}", controllers.CreateCard).Methods("POST")
+	pinnedCards.HandleFunc("/{potId}", controllers.UpdateCard).Methods("PUT")
+	pinnedCards.HandleFunc("/{potId}", controllers.DeleteCard).Methods("DELETE")
 
 	// --ADMIN ACTIONS--
 	adminR := r.NewRoute().Subrouter()

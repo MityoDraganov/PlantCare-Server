@@ -30,6 +30,7 @@ func DropAllTables(db *gorm.DB) error {
 		&models.Update{},
 		&models.ActivePeriod{},
 		&models.Message{},
+		&models.PinnedCard{},
 	}
 
 	for _, model := range modelsToDrop {
