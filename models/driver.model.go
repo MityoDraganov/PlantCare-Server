@@ -7,5 +7,9 @@ type Driver struct {
 
 	DownloadUrl string `json:"downloadUrl"` // The URL to download the driver (software)
 
-	Sensors []Sensor `gorm:"foreignKey:DriverID"` // One driver (software) can control many sensors
+	Sensors []Sensor `gorm:"foreignKey:DriverID"`
+
+	MarketplaceBannerUrl *string
+	Alias                string `json:"alias"`
+	UploadedByUserID     string
 }

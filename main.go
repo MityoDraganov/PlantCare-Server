@@ -14,6 +14,7 @@ import (
 	"PlantCare/initPackage"
 	"PlantCare/middlewears"
 	"PlantCare/models"
+	"PlantCare/utils"
 	"PlantCare/websocket"
 
 	"gorm.io/driver/sqlserver"
@@ -43,6 +44,12 @@ func main() {
 	clerk.SetKey(os.Getenv(("CLERK_API_KEY")))
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api/v1").Subrouter()
+
+	const credentialsFile = "./firebase_service_account.json"
+	_, err = utils.InitializeApp(credentialsFile)
+	if err != nil {
+		log.Fatalf("Failed to initialize Firebase app: %v", err)
+	}
 
 	authMiddleware := clerkhttp.RequireHeaderAuthorization()
 	api.Use(authMiddleware)
@@ -107,9 +114,11 @@ func main() {
 	webhooks.HandleFunc("/{potId}/{webhookId}", controllers.DeleteWebhook).Methods("DELETE")
 
 	// --DRIVERS--
-	//drivers := api.PathPrefix("/drivers").Subrouter()
-	//drivers.Use(middlewears.PotMiddleware)
-	//drivers.HandleFunc("/{potId}", controllers.UploadDriver).Methods("POST")
+	drivers := api.PathPrefix("/drivers").Subrouter()
+	drivers.HandleFunc("", controllers.GetAllDrivers).Methods("GET")
+	drivers.HandleFunc("", controllers.UploadDriver).Methods("POST")
+	drivers.HandleFunc("/{driverId}", controllers.UploadDriver).Methods("PUT")
+	drivers.HandleFunc("/{driverId}", controllers.UploadDriver).Methods("DELETE")
 
 	// --PINNED CARDS
 	pinnedCards := api.PathPrefix("/pinnedCards").Subrouter()

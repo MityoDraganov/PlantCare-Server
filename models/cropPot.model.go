@@ -31,4 +31,6 @@ type CropPot struct {
 	Controls []Control `gorm:"foreignKey:CropPotID"`
 
 	MeasuremntInterval time.Duration `json:"measuremntInterval"`
+
+	Canvas Canvas `gorm:"foreignKey:CropPotID"`
 }

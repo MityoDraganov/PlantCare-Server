@@ -10,4 +10,5 @@ type User struct {
     CropPots  []CropPot `gorm:"foreignKey:ClerkUserID;references:ClerkID"`  // Foreign key for CropPots
     IsAdmin_  bool
     Inbox     []Message  `gorm:"foreignKey:ClerkUserID;references:ClerkID"` // Specify the foreign key for Inbox
+    
 }
