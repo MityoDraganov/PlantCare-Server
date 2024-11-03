@@ -11,5 +11,5 @@ type Driver struct {
 
 	MarketplaceBannerUrl *string
 	Alias                string `json:"alias"`
-	UploadedByUserID     string
+	ClerkUserID     string
 }

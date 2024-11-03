@@ -1,7 +1,10 @@
 package dtos
 
 type DriverDto struct {
-	DownloadUrl          string  `json:"downloadUrl"`
-	MarketplaceBannerUrl *string `json:"marketplaceBannerUrl"`
-	Alias                string  `json:"alias"`
+	Id uint `json:"id"`
+	DownloadUrl          string          `json:"downloadUrl"`
+	MarketplaceBannerUrl *string         `json:"marketplaceBannerUrl"`
+	Alias                string          `json:"alias"`
+	User                 UserResponseDto `json:"user"`
+	IsUploader bool `json:"isUploader"`
 }

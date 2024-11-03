@@ -35,13 +35,14 @@ func InitDB() *gorm.DB {
 }
 
 func main() {
-	cronjobs.StartCronJobs()
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+	
+	cronjobs.StartCronJobs()
 
-	clerk.SetKey(os.Getenv(("CLERK_API_KEY")))
+	clerk.SetKey(os.Getenv("CLERK_API_KEY"))
 	r := mux.NewRouter()
 	api := r.PathPrefix("/api/v1").Subrouter()
 
@@ -117,8 +118,8 @@ func main() {
 	drivers := api.PathPrefix("/drivers").Subrouter()
 	drivers.HandleFunc("", controllers.GetAllDrivers).Methods("GET")
 	drivers.HandleFunc("", controllers.UploadDriver).Methods("POST")
-	drivers.HandleFunc("/{driverId}", controllers.UploadDriver).Methods("PUT")
-	drivers.HandleFunc("/{driverId}", controllers.UploadDriver).Methods("DELETE")
+	drivers.HandleFunc("/{driverId}", controllers.EditDriver).Methods("PUT")
+	drivers.HandleFunc("/{driverId}", controllers.DeleteDriver).Methods("DELETE")
 
 	// --PINNED CARDS
 	pinnedCards := api.PathPrefix("/pinnedCards").Subrouter()
