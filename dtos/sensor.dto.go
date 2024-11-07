@@ -7,7 +7,7 @@ import (
 type SensorDto struct {
 	ID                  uint    `json:"id"`
 	SerialNumber        string  `json:"serialNumber"`
-	Alias               string  `json:"alias"`
+	Alias               *string  `json:"alias"`
 	Description         *string `json:"description"`
 	MeasurementInterval string  `json:"measurementInterval"`
 	Type                models.Type

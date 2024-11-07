@@ -59,7 +59,7 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 		payload := wsDtos.WebhookPayload{
 			Sensor: dtos.SensorDto{
 				SerialNumber: sensorDbObject.SerialNumber,
-				Alias:        *sensorDbObject.Alias,
+				Alias:        utils.CoalesceString(sensorDbObject.Alias),
 				Description:  sensorDbObject.Description,
 			},
 			Measurement: measurementData,
@@ -96,6 +96,7 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 		log.Fatal("Pot not found!: " + err.Error())
 	}
 
+	fmt.Println(sensorDto.SerialNumber)
 	sensorDbObject, err := controllers.FindSensorBySerialNum(sensorDto.SerialNumber)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		fmt.Println(err)
@@ -134,31 +135,84 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
 		return
 	}
-	err = controllers.ChangeAttachedState(sensorDbObject)
+	err = controllers.AttachedStateUpdater(sensorDbObject, true)
 	if err != nil {
 		log.Fatal("Error changing attached state: ", err)
 		return
 	}
 
 	alert := wsTypes.Alert{}
-	 sensorDriver, err := controllers.FindDriverBySensorId(sensorDbObject.ID)
-	 fmt.Println(sensorDriver)
-	 if err != nil && err != gorm.ErrRecordNotFound {
+	sensorDriver, err := controllers.FindDriverBySensorId(sensorDbObject.ID)
+	fmt.Println(sensorDriver)
+	if err != nil && err != gorm.ErrRecordNotFound {
 		log.Fatal("Error here 101")
-	return
+		return
 	}
 
 	if sensorDriver != nil {
-	 	alert.Message = "Sensor connected successfully."
-	 	wsutils.SendMessage(connection, wsTypes.SensorConnected, "", alert)
-	 	return;
-	 }
+		alert.Message = "Sensor connected successfully."
+		wsutils.SendMessage(connection, wsTypes.SensorConnected, "", alert)
+		return
+	}
 
 	alert.Message = "Please provide a driver for the sensor."
 	fmt.Println("cropPotDbObject.ClerkUserID")
 	fmt.Println(*cropPotDbObject.ClerkUserID)
-	 controllers.CreateMessage(*cropPotDbObject.ClerkUserID, "Please provide a driver for the sensor.")
-	 wsutils.SendMessage(connection, wsTypes.DriverRequired, "", alert)
+	controllers.CreateMessage(*cropPotDbObject.ClerkUserID, "Please provide a driver for the sensor.")
+	wsutils.SendMessage(connection, wsTypes.DriverRequired, "", alert)
+
+	userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDbObject.ClerkUserID)
+	fmt.Println(isExisting)
+	fmt.Println(userConn)
+	if isExisting {
+		wsutils.SendMessage(userConn, wsTypes.DriverRequired, "", alert)
+	}
+
+}
+
+func (h *Handler) HandleDetachSensor(data json.RawMessage, connection *wsTypes.Connection) {
+	potIDStr, ok := connection.Context.Value(wsTypes.CropPotIDKey).(string)
+	if !ok {
+		fmt.Println("Error while reading PotId")
+		return
+	}
+
+	var sensorDto dtos.AttachSensor
+	err := json.Unmarshal(data, &sensorDto)
+	if err != nil {
+		fmt.Println("Error while unmarshaling sensor data:", err)
+		return
+	}
+
+	cropPotDbObject, err := controllers.FindCropPotById(potIDStr)
+	if err != nil {
+		log.Fatal("Pot not found!: " + err.Error())
+	}
+
+	fmt.Println(sensorDto.SerialNumber)
+	sensorDbObject, err := controllers.FindSensorBySerialNum(sensorDto.SerialNumber)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		fmt.Println(err)
+		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("sensorDbObject")
+	fmt.Println(sensorDbObject)
+	fmt.Println("err")
+	fmt.Println(err)
+
+	if sensorDbObject == nil {
+		fmt.Println("Sensor not found or uninitialized")
+		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
+		return
+	}
+	err = controllers.AttachedStateUpdater(sensorDbObject, false)
+	if err != nil {
+		log.Fatal("Error changing attached state: ", err)
+		return
+	}
+
+	alert := wsTypes.Alert{}
 
 	userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDbObject.ClerkUserID)
 	fmt.Println(isExisting)

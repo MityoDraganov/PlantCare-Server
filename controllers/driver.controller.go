@@ -27,7 +27,7 @@ func GetAllDrivers(w http.ResponseWriter, r *http.Request) {
 	var drivers []models.Driver
 
 	// Query all drivers from the database
-	result := initPackage.Db.Find(&drivers)
+	result := initPackage.Db.Where("is_marketplace_featured = ?", true).Find(&drivers)
 	if result.Error != nil {
 		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
 		return
@@ -41,7 +41,7 @@ func GetAllDrivers(w http.ResponseWriter, r *http.Request) {
 
 	var driverDtos []dtos.DriverDto
 	for _, driver := range drivers {
-		isClerkUser := driver.ClerkUserID == clerkUserID
+		isClerkUser := driver.UploadedByUserID == clerkUserID
 		driverDtos = append(driverDtos, ToDriverDTO(driver, isClerkUser))
 	}
 
@@ -93,7 +93,8 @@ func UploadDriver(w http.ResponseWriter, r *http.Request) {
 		Alias:                alias,
 		DownloadUrl:          downloadUrl,
 		MarketplaceBannerUrl: &imageUrl, // Save Firebase URL
-		ClerkUserID:          clerkUserID,
+		UploadedByUserID:          clerkUserID,
+		IsMarketplaceFeatured: true,
 	}
 
 	// Insert driver record in database
@@ -164,7 +165,7 @@ func EditDriver(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure the clerk user is the original uploader
-	if driverDbObject.ClerkUserID != clerkUserID {
+	if driverDbObject.UploadedByUserID != clerkUserID {
 		utils.JsonError(w, "Unauthorized: you do not have permission to edit this driver", http.StatusForbidden)
 		return
 	}
@@ -211,7 +212,7 @@ type ClerkUserResponse struct {
 }
 
 func ToDriverDTO(driver models.Driver, IsUploader bool) dtos.DriverDto {
-	url := fmt.Sprintf("https://api.clerk.dev/v1/users/%s", driver.ClerkUserID)
+	url := fmt.Sprintf("https://api.clerk.dev/v1/users/%s", driver.UploadedByUserID)
 
 	// Create a new HTTP request with Clerk API Key for authorization
 	req, err := http.NewRequest("GET", url, nil)
@@ -252,10 +253,12 @@ func ToDriverDTO(driver models.Driver, IsUploader bool) dtos.DriverDto {
 		Email:    primaryEmail,
 	}
 
+
+	
 	return dtos.DriverDto{
 		Id:                   driver.ID,
 		DownloadUrl:          driver.DownloadUrl,
-		MarketplaceBannerUrl: driver.MarketplaceBannerUrl,
+		MarketplaceBannerUrl: *utils.CoalesceString(driver.MarketplaceBannerUrl),
 		Alias:                driver.Alias,
 		User:                 userDto,
 		IsUploader:           IsUploader,

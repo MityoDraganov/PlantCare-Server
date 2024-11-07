@@ -13,72 +13,76 @@ import (
 	"strings"
 )
 
-func UploadMultipleDrivers(driverURLs []string, potConn *wsTypes.Connection) error {
-	// Prepare paths for drivers and repositories
-	driverZipFilePath := "./driver.zip"
-	repoZipFilePath := "./repo.zip"
-	driverExtractDir := "./extracted/repo/PlantCare-esp32-main/src/drivers"
-	repoExtractDir := "./extracted/repo"
+func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connection) error {
+    driverZipFilePath := "./driver.zip"
+    repoZipFilePath := "./repo.zip"
+    driverExtractDir := "./extracted/repo/PlantCare-esp32-main/src/drivers"
+    repoExtractDir := "./extracted/repo"
+	configJsonDir := "./extracted/repo/PlantCare-esp32-main/src"
+    sensorDriverConfig := make(map[string]string)
 
-	// Clean up any previous artifacts
-	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
-		return err
-	}
+    // Clean up any previous artifacts
+    if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
+        return err
+    }
 
-	// Create directories for extraction
-	if err := os.MkdirAll(driverExtractDir, os.ModePerm); err != nil {
-		return err
-	}
-	if err := os.MkdirAll(repoExtractDir, os.ModePerm); err != nil {
-		return err
-	}
+    if err := os.MkdirAll(driverExtractDir, os.ModePerm); err != nil {
+        return err
+    }
+    if err := os.MkdirAll(repoExtractDir, os.ModePerm); err != nil {
+        return err
+    }
 
-	// Download the main repo ZIP
-	if err := DownloadFile("https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/main.zip", repoZipFilePath); err != nil {
-		return err
-	}
+    if err := DownloadFile("https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/main.zip", repoZipFilePath); err != nil {
+        return err
+    }
 
-	// Unzip the main repository
-	if err := Unzip(repoZipFilePath, repoExtractDir); err != nil {
-		return err
-	}
+    if err := Unzip(repoZipFilePath, repoExtractDir); err != nil {
+        return err
+    }
 
-	// Download and extract all the drivers sequentially for the single pot
-	for _, driverURL := range driverURLs {
-		// Convert the GitHub URL to the ZIP file download link
-		zipUrl, err := convertGitHubURLToZip(driverURL)
-		if err != nil {
-			return err
-		}
+    // Process each driver URL
+    for serialNumber, driverURL := range driverURLs {
+        zipUrl, err := convertGitHubURLToZip(driverURL)
+        if err != nil {
+            return err
+        }
 
-		// Download the driver ZIP file
-		if err := DownloadFile(zipUrl, driverZipFilePath); err != nil {
-			return err
-		}
+        if err := DownloadFile(zipUrl, driverZipFilePath); err != nil {
+            return err
+        }
 
-		// Extract the driver to the correct directory
-		if err := Unzip(driverZipFilePath, driverExtractDir); err != nil {
-			fmt.Println(err)
-			return err
-		}
-	}
+        if err := Unzip(driverZipFilePath, driverExtractDir); err != nil {
+            return err
+        }
 
+        // Find the driver source directory containing the C++ class
+        driverFilePath, err := FindSrcDir(driverExtractDir, driverURL)
+        if err != nil {
+            return err
+        }
 
+        className, err := FindClassName(driverFilePath)
+        if err != nil {
+            return err
+        }
 
-	// Perform the OTA upload using the repoExtractDir, which now includes all the drivers
-	if err := uploadFirmwareOTA(repoExtractDir, potConn.IP); err != nil {
-		customErr := errors.New("failed to upload driver OTA! Check pot connectivity")
-		return customErr
-	}
+        // Store the configuration based on the serial number
+        sensorDriverConfig[serialNumber] = className
+    }
 
-	// Clean up after the upload process
-	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
-		return err
-	}
+    // Write the configuration JSON file
+    configPath := filepath.Join(configJsonDir, "config.json")
+    if err := WriteConfigJSON(configPath, sensorDriverConfig); err != nil {
+        return err
+    }
 
-	return nil
+    if err := uploadFirmwareOTA(repoExtractDir, potConn.IP); err != nil {
+        return fmt.Errorf("failed to upload driver OTA: %w", err)
+    }
+
+    return nil
 }
-
 
 
 // UploadDriver handles the upload and processing of the driver
@@ -96,15 +100,14 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 		return &err
 	}
 
-
 	driverZipFilePath := "./driver.zip"
 	repoZipFilePath := "./repo.zip"
 	driverExtractDir := "./extracted/repo/PlantCare-esp32-main/lib"
 	repoExtractDir := "./extracted/repo"
 
-	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath	); err != nil {
-        return &err
-    }
+	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
+		return &err
+	}
 
 	// Create extraction directories
 	if err := os.MkdirAll(driverExtractDir, os.ModePerm); err != nil {
@@ -139,14 +142,13 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 
 	}
 
-
 	if err := uploadFirmwareOTA(repoExtractDir, connection.IP); err != nil {
 		return &err
 	}
 
-	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath	); err != nil {
-        return &err
-    }
+	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
+		return &err
+	}
 
 	return nil
 }
@@ -180,36 +182,36 @@ func uploadFirmwareOTA(repoExtractDir string, esp32IP string) error {
 }
 
 func convertGitHubURLToZip(gitURL string) (string, error) {
-    parsedURL, err := url.Parse(gitURL)
-    if err != nil {
-        return "", fmt.Errorf("invalid URL: %v", err)
-    }
+	parsedURL, err := url.Parse(gitURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %v", err)
+	}
 
-    // Ensure the URL is a GitHub repo URL
-    if !strings.Contains(parsedURL.Host, "github.com") {
-        return "", fmt.Errorf("invalid GitHub URL")
-    }
+	// Ensure the URL is a GitHub repo URL
+	if !strings.Contains(parsedURL.Host, "github.com") {
+		return "", fmt.Errorf("invalid GitHub URL")
+	}
 
-    // Split the URL path to extract owner and repository
-    pathParts := strings.Split(parsedURL.Path, "/")
-    if len(pathParts) < 3 {
-        return "", fmt.Errorf("URL should be in the format https://github.com/<owner>/<repo>")
-    }
+	// Split the URL path to extract owner and repository
+	pathParts := strings.Split(parsedURL.Path, "/")
+	if len(pathParts) < 3 {
+		return "", fmt.Errorf("URL should be in the format https://github.com/<owner>/<repo>")
+	}
 
-    owner := pathParts[1]
-    repo := pathParts[2]
+	owner := pathParts[1]
+	repo := pathParts[2]
 
-    // Construct the zip download URL
-    zipURL := fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/main.zip", owner, repo)
-    return zipURL, nil
+	// Construct the zip download URL
+	zipURL := fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/main.zip", owner, repo)
+	return zipURL, nil
 }
 
 func cleanUp(paths ...string) error {
-    for _, path := range paths {
-        if err := os.RemoveAll(path); err != nil {
-            fmt.Printf("Error removing %s: %v\n", path, err)
-            return err
-        }
-    }
-    return nil
+	for _, path := range paths {
+		if err := os.RemoveAll(path); err != nil {
+			fmt.Printf("Error removing %s: %v\n", path, err)
+			return err
+		}
+	}
+	return nil
 }

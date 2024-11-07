@@ -20,10 +20,18 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+type SensorConfig struct {
+	SerialNumber string `json:"serialNumber"`
+	DriverURL    string `json:"driverUrl"`
+}
+
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	var sensorDtos []dtos.SensorUserRequestDto
-	var driverURLs []string
+	driverURLs := make(map[string]string)
 	var potId uint
+	var sensorConfigs []SensorConfig
+
+	var cropPot *models.CropPot
 
 	err := json.NewDecoder(r.Body).Decode(&sensorDtos)
 	if err != nil {
@@ -49,10 +57,9 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-
 		sensorUpdate := models.Sensor{
-			Alias:              &sensorDto.Alias,
-			Description:        sensorDto.Description,
+			Alias:       &sensorDto.Alias,
+			Description: sensorDto.Description,
 		}
 
 		result := tx.Model(sensorDbObject).Updates(sensorUpdate).Clauses(clause.Returning{})
@@ -65,6 +72,19 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 
 		if sensorDto.DriverUrl != "" {
 			log.Println("Updating Driver URL...")
+			cropPotIDStr := strconv.FormatUint(uint64(sensorDbObject.CropPotID), 10)
+			cropPot, err := FindCropPotById(cropPotIDStr)
+			cropPot.Status = models.StatusUpdating // Or set to models.StatusOffline based on conditions
+			if err := initPackage.Db.Save(&cropPot).Error; err != nil {
+				log.Printf("Failed to reset crop pot status: %v", err)
+				utils.JsonError(w, "Failed to reset crop pot status", http.StatusInternalServerError)
+				return
+			}
+			if err != nil {
+				log.Println("Crop pot not found:", err)
+				utils.JsonError(w, "Crop pot not found", http.StatusNotFound)
+				return
+			}
 			if sensorDbObject.Driver == nil {
 				log.Println("Driver not found, creating new driver.")
 				driver := models.Driver{
@@ -88,8 +108,12 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
+			sensorConfigs = append(sensorConfigs, SensorConfig{
+				SerialNumber: sensorDbObject.SerialNumber,
+				DriverURL:    sensorDto.DriverUrl,
+			})
+			driverURLs[sensorDbObject.SerialNumber] = sensorDto.DriverUrl
 			potId = sensorDbObject.CropPotID
-			driverURLs = append(driverURLs, sensorDto.DriverUrl)
 		}
 	}
 
@@ -116,7 +140,6 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		if isExisting {
 			wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
 		}
-		fmt.Println("HERE 123")
 
 		if err := utils.UploadMultipleDrivers(driverURLs, connection); err != nil {
 			log.Printf("Failed to upload driver: %v", err)
@@ -126,13 +149,21 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+
 	}()
 
+	cropPot.Status = models.StatusOnline // Or set to models.StatusOffline based on conditions
+	if err := initPackage.Db.Save(&cropPot).Error; err != nil {
+		log.Printf("Failed to reset crop pot status: %v", err)
+		utils.JsonError(w, "Failed to reset crop pot status", http.StatusInternalServerError)
+		return
+	}
 	// Commit the transaction after the OTA operation
 	if err := tx.Commit().Error; err != nil {
 		utils.JsonError(w, "Transaction commit failed", http.StatusInternalServerError)
 		return
 	}
+
 
 	// Return the updated array of sensorDtos
 	w.Header().Set("Content-Type", "application/json")
@@ -200,13 +231,13 @@ func MapSensorToDTO(sensor models.Sensor) dtos.SensorDto {
 	}
 
 	return dtos.SensorDto{
-		ID:                  sensor.ID,
-		SerialNumber:        sensor.SerialNumber,
-		Alias:               *sensor.Alias,
-		Description:         sensor.Description,
-		Measurements:        sensor.Measurements,
-		DriverUrl:           driverUrl,
-		IsAttached:          sensor.IsAttached,
+		ID:           sensor.ID,
+		SerialNumber: sensor.SerialNumber,
+		Alias:        utils.CoalesceString(sensor.Alias),
+		Description:  sensor.Description,
+		Measurements: sensor.Measurements,
+		DriverUrl:    driverUrl,
+		IsAttached:   sensor.IsAttached,
 	}
 }
 
@@ -229,9 +260,9 @@ func ToSensorsDTO(input interface{}) []dtos.SensorDto {
 	}
 }
 
-func ChangeAttachedState(sensor *models.Sensor) error {
+func AttachedStateUpdater(sensor *models.Sensor, state bool) error {
 	// Toggle the IsAttached field
-	sensor.IsAttached = !sensor.IsAttached
+	sensor.IsAttached = state
 
 	// Update the database with the new state
 	if err := initPackage.Db.Save(sensor).Error; err != nil {
@@ -243,7 +274,9 @@ func ChangeAttachedState(sensor *models.Sensor) error {
 
 func FindDriverBySensorId(sensorId uint) (*models.Driver, error) {
 	var driver models.Driver
-	result := initPackage.Db.First(&driver, "sensor_id = ?", sensorId)
+
+	// Use Preload to load sensors associated with the driver
+	result := initPackage.Db.Preload("Sensors").Joins("JOIN sensors ON sensors.driver_id = drivers.id").Where("sensors.id = ?", sensorId).First(&driver)
 
 	if result.Error != nil {
 		return nil, result.Error

@@ -71,6 +71,7 @@ func main() {
 		&models.ActivePeriod{},
 		&models.Message{},
 		&models.PinnedCard{},
+		&models.Canvas{},
 	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
@@ -123,10 +124,17 @@ func main() {
 
 	// --PINNED CARDS
 	pinnedCards := api.PathPrefix("/pinnedCards").Subrouter()
-	webhooks.Use(middlewears.PotMiddleware)
+	pinnedCards.Use(middlewears.PotMiddleware)
 	pinnedCards.HandleFunc("/{potId}", controllers.CreateCard).Methods("POST")
 	pinnedCards.HandleFunc("/{potId}", controllers.UpdateCard).Methods("PUT")
 	pinnedCards.HandleFunc("/{potId}", controllers.DeleteCard).Methods("DELETE")
+
+	//	--CANVAS
+	canvas := api.PathPrefix("/pinnedCards").Subrouter()
+	canvas.Use(middlewears.PotMiddleware)
+	canvas.HandleFunc("/{potId}", controllers.CreateCanvas).Methods("POST")
+	canvas.HandleFunc("/{potId}", controllers.UpdateCanvas).Methods("PUT")
+	canvas.HandleFunc("/{potId}", controllers.DeleteCanvas).Methods("DELETE")
 
 	// --ADMIN ACTIONS--
 	adminR := r.NewRoute().Subrouter()

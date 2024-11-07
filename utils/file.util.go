@@ -2,12 +2,14 @@ package utils
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -81,28 +83,42 @@ func Unzip(src, dest string) error {
 	}
 	return nil
 }
+func FindSrcDir(driverExtractDir, driverURL string) (string, error) {
+	// Extract the last segment of the URL, which is the subfolder name
+	urlParts := strings.Split(strings.TrimRight(driverURL, "/"), "/")
+	if len(urlParts) == 0 {
+		return "", fmt.Errorf("invalid URL: unable to determine driver subdirectory from %s", driverURL)
+	}
 
-func FindSrcDir(rootDir string) (string, error) {
-	var srcDir string
+	subDirName := urlParts[len(urlParts)-1]
+	// Construct the path to the expected driver directory
+	driverDirPath := filepath.Join(driverExtractDir, subDirName)
+	driverDirPath = driverDirPath + "-main"
 
-	err := filepath.WalkDir(rootDir, func(path string, entry fs.DirEntry, err error) error {
+	var foundFilePath string
+	err := filepath.WalkDir(driverDirPath, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if entry.IsDir() && strings.HasSuffix(entry.Name(), "src") {
-			srcDir = path
-			return filepath.SkipDir // Stop searching as soon as we find the src directory
+		// Check if the file has .cpp or .c extension
+		if !d.IsDir() && (strings.HasSuffix(d.Name(), ".cpp") || strings.HasSuffix(d.Name(), ".c")) {
+			foundFilePath = path
+			return filepath.SkipDir // Stop walking once we find the file
 		}
 		return nil
 	})
+	fmt.Println("foundFilePath")
+	fmt.Println(foundFilePath)
 
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error searching for driver file in %s: %v", driverDirPath, err)
 	}
-	if srcDir == "" {
-		return "", fmt.Errorf("src directory not found in %s", rootDir)
+
+	if foundFilePath == "" {
+		return "", fmt.Errorf("no .cpp or .c file found in expected path %s", driverDirPath)
 	}
-	return srcDir, nil
+
+	return foundFilePath, nil
 }
 
 // CopyDriverLibrary copies the driver library to the specified lib directory.
@@ -138,4 +154,55 @@ func CopyDriverLibrary(srcDir, destDir string) error {
 		return err
 	})
 	return err
+}
+
+func FindClassName(filePath string) (string, error) {
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	// Read the entire file content
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return "", err
+	}
+
+	// Regular expression to match a class declaration in C++
+	classRegex := regexp.MustCompile(`\bclass\s+([A-Za-z_]\w*)\b`)
+	// Additional regex to match a class name based on member function definitions with ClassName::
+	memberFunctionRegex := regexp.MustCompile(`\b([A-Za-z_]\w*)::`)
+
+	// First, try to find a class declaration using the original regex
+	matches := classRegex.FindStringSubmatch(string(content))
+	if len(matches) > 1 {
+		return matches[1], nil
+	}
+
+	// If no class declaration was found, try finding a member function definition to infer the class name
+	memberMatches := memberFunctionRegex.FindStringSubmatch(string(content))
+	if len(memberMatches) > 1 {
+		return memberMatches[1], nil
+	}
+
+	// If no class declaration or member function was found
+	return "", fmt.Errorf("no class declaration or member function found in the file")
+}
+
+
+func WriteConfigJSON(configPath string, sensorDriverConfig map[string]string) error {
+	configFile, err := os.Create(configPath)
+	if err != nil {
+		return err
+	}
+	defer configFile.Close()
+
+	encoder := json.NewEncoder(configFile)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(sensorDriverConfig); err != nil {
+		return err
+	}
+	return nil
 }

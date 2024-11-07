@@ -10,6 +10,6 @@ type PinnedCard struct {
 	Icon          string `json:"icon"`
 	SensorID      uint   `json:"sensorId"`
 	StartLocation int    `json:"startLocation"`
-	width         int    `json:"width"`
-	height        int    `json:"height"`
+	Width         int    `json:"width"`
+	Height        int    `json:"height"`
 }

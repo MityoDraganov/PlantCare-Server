@@ -19,12 +19,14 @@ import (
 // Read messages from the WebSocket connection
 func HandleMessages(connection *wsTypes.Connection, cropPotDbObject *models.CropPot) {
 	defer func() {
-		// Cleanup when done
 		close(connection.Send)
 		connection.Conn.Close() // Ensure the connection is closed
 	}()
 
-	rateLimiter := wsutils.NewRateLimiter(10, time.Hour) // Initialize RateLimiter with a hardcoded limit
+	rateLimiter := wsutils.NewRateLimiter(1000, time.Hour) // Initialize RateLimiter with a hardcoded limit
+
+
+
 
 	for {
 		_, msg, err := connection.Conn.ReadMessage()
@@ -44,6 +46,7 @@ func HandleMessages(connection *wsTypes.Connection, cropPotDbObject *models.Crop
 			}
 			break
 		}
+		fmt.Printf("Processing message: %s\n", msg)
 
 		// Process the received message
 		ProcessMessage(msg, connection, rateLimiter)
@@ -53,13 +56,17 @@ func HandleMessages(connection *wsTypes.Connection, cropPotDbObject *models.Crop
 // Process the received message
 func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsutils.RateLimiter) {
 	var message wsTypes.Message
+	
 	err := json.Unmarshal(msg, &message)
 	if err != nil {
 		fmt.Println("Error while unmarshaling message:", err)
 		return
 	}
-
-	fmt.Printf("Received message with event: %+v\n", message.Event)
+	
+	if message.Event == nil {
+		fmt.Println("Received message with nil event")
+		return
+	}
 
 	handler := &eventHandlers.Handler{}
 

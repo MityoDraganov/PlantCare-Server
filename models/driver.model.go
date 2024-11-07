@@ -5,11 +5,12 @@ import "gorm.io/gorm"
 type Driver struct {
 	gorm.Model
 
-	DownloadUrl string `json:"downloadUrl"` // The URL to download the driver (software)
+	DownloadUrl string `json:"downloadUrl"`
 
 	Sensors []Sensor `gorm:"foreignKey:DriverID"`
 
 	MarketplaceBannerUrl *string
 	Alias                string `json:"alias"`
-	ClerkUserID     string
+	UploadedByUserID     string
+	IsMarketplaceFeatured bool
 }

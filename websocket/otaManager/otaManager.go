@@ -6,7 +6,7 @@ import (
 
 type PendingOTA struct {
 	PotID      string   // Pot ID that the OTA is pending for
-	DriverURLs []string // List of driver URLs for the OTA update
+	DriverURLs map[string]string// List of driver URLs for the OTA update
 }
 
 type PendingOTAManager struct {
@@ -28,7 +28,7 @@ func (p *PendingOTAManager) IsOTAPending(potID string) bool {
 }
 
 // AddOTAPending adds a pending OTA for a given potID with associated driver URLs
-func (p *PendingOTAManager) AddOTAPending(potID string, driverURLs []string) {
+func (p *PendingOTAManager) AddOTAPending(potID string, driverURLs map[string]string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.pendingOTAs[potID] = PendingOTA{

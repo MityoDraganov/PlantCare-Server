@@ -60,7 +60,7 @@ func AddWebhook(w http.ResponseWriter, r *http.Request) {
 	for _, event := range webhook.SubscribedEvents {
 		subscribedEvent := dtos.SensorDto{
 			SerialNumber: event.SerialNumber,
-			Alias:        *event.Alias,
+			Alias:        utils.CoalesceString(event.Alias),
 			Description:  event.Description,
 		}
 
@@ -170,7 +170,7 @@ func DeleteWebhook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error deleting webhook", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Set the response header and encode the updated webhook object
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(webhook); err != nil {
@@ -204,7 +204,7 @@ func mapWebhookToDTO(webhook models.Webhook) dtos.WebhookResponse {
 	for _, event := range webhook.SubscribedEvents {
 		subscribedEvent := dtos.SensorDto{
 			SerialNumber: event.SerialNumber,
-			Alias:        *event.Alias,
+			Alias:        utils.CoalesceString(event.Alias),
 			Description:  utils.CoalesceString(event.Description),
 		}
 		subscribedEvents = append(subscribedEvents, subscribedEvent)
@@ -217,7 +217,6 @@ func mapWebhookToDTO(webhook models.Webhook) dtos.WebhookResponse {
 		SubscribedEvents: subscribedEvents, // Empty slice if no events
 	}
 }
-
 
 func ToWebhooksDTO(input interface{}) []dtos.WebhookResponse {
 	switch v := input.(type) {
@@ -236,4 +235,3 @@ func ToWebhooksDTO(input interface{}) []dtos.WebhookResponse {
 		return []dtos.WebhookResponse{}
 	}
 }
-
