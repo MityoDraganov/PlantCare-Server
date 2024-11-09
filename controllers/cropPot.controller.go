@@ -90,10 +90,10 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("%+v\n", cropPotDto)
 	params := mux.Vars(r)
 	id := params["potId"]
 
+	// Find the crop pot by ID
 	cropPotDBObject, err := FindCropPotById(id)
 	if err != nil {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
@@ -113,16 +113,38 @@ func UpdateCropPot(w http.ResponseWriter, r *http.Request) {
 
 	potUpdate := models.CropPot{
 		Alias:              cropPotDto.Alias,
-		IsPinned:        cropPotDto.IsPinned,
+		IsPinned:           cropPotDto.IsPinned,
 		MeasuremntInterval: intervalUpdateTime,
 	}
 
 
+	// Update CropPot with the new values
 	initPackage.Db.Model(&cropPotDBObject).Updates(potUpdate)
 
-	if !cropPotDto.IsPinned {
-		cropPotDBObject.IsPinned = false
+	// Check if isPinned is set to true and if there is no existing Canvas for this CropPot
+	if cropPotDto.IsPinned && cropPotDBObject.Canvas.ID == 0 {
+		// Create a new Canvas for the CropPot
+		newCanvas := models.Canvas{
+			CropPotID: cropPotDBObject.ID,
+		}
+
+		// Save the new Canvas to the database
+		if err := initPackage.Db.Create(&newCanvas).Error; err != nil {
+			utils.JsonError(w, "Failed to create Canvas", http.StatusInternalServerError)
+			return
+		}
+		cropPotDBObject.Canvas = newCanvas
 	}
+
+    if !cropPotDto.IsPinned {
+        if cropPotDBObject.Canvas.ID != 0 {
+			fmt.Println("Deleted canvas")
+           DeleteCanvas(cropPotDBObject.Canvas.ID )
+        }
+        // Ensure the IsPinned flag is updated
+        cropPotDBObject.IsPinned = false
+    }
+
 
 	if err := initPackage.Db.Save(&cropPotDBObject).Clauses(clause.Returning{}).Error; err != nil {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
@@ -184,6 +206,8 @@ func FindCropPotById(id string) (*models.CropPot, error) {
 	result := initPackage.Db.
 		Preload("Sensors").
 		Preload("Sensors.Measurements").
+		Preload("Canvas").
+		Preload("Canvas.PinnedCards").
 		First(&cropPot, "id = ?", id)
 	if result.Error != nil {
 		return nil, result.Error
@@ -194,6 +218,8 @@ func FindCropPotById(id string) (*models.CropPot, error) {
 func FindPotByToken(token string) (*models.CropPot, error) {
 	var cropPot models.CropPot
 	if err := initPackage.Db.
+		Preload("Canvas").
+		Preload("Canvas.PinnedCards").
 		Preload("Sensors").
 		Preload("Sensors.Measurements").
 		Preload("Sensors.Driver").
@@ -213,6 +239,8 @@ func FindPotByToken(token string) (*models.CropPot, error) {
 func FindPotsByUserId(userId string) ([]models.CropPot, error) {
 	var cropPots []models.CropPot
 	result := initPackage.Db.
+		Preload("Canvas").
+		Preload("Canvas.PinnedCards").
 		Preload("Sensors").
 		Preload("Sensors.Measurements").
 		Preload("Sensors.Driver").
@@ -225,7 +253,6 @@ func FindPotsByUserId(userId string) ([]models.CropPot, error) {
 		Preload("Webhooks.SubscribedEvents").
 		Where("clerk_user_id = ?", userId).
 		Find(&cropPots)
-
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -251,14 +278,15 @@ func ToCropPotResponse(data interface{}) []dtos.CropPotResponse {
 
 func ToCropPotResponseDTO(cropPot models.CropPot) dtos.CropPotResponse {
 	return dtos.CropPotResponse{
-		ID:         cropPot.ID,
-		Alias:      cropPot.Alias,
-		IsArchived: cropPot.IsArchived,
-		IsPinned:   cropPot.IsPinned,
-		Controls:   ToControlsDTO(cropPot.Controls),
-		Sensors:    ToSensorsDTO(cropPot.Sensors),
-		Webhooks:   ToWebhooksDTO(cropPot.Webhooks),
-		Status:     cropPot.Status,
+		ID:                  cropPot.ID,
+		Alias:               cropPot.Alias,
+		IsArchived:          cropPot.IsArchived,
+		IsPinned:            cropPot.IsPinned,
+		Controls:            ToControlsDTO(cropPot.Controls),
+		Sensors:             ToSensorsDTO(cropPot.Sensors),
+		Webhooks:            ToWebhooksDTO(cropPot.Webhooks),
+		Status:              cropPot.Status,
 		MeasurementInterval: utils.DurationToTimeString(cropPot.MeasuremntInterval),
+		Canvas:              ToCanvasDTO(cropPot.Canvas),
 	}
 }

@@ -12,6 +12,7 @@ type CropPotResponse struct {
 	Webhooks   []WebhookResponse `json:"webhooks"`
 	Status     models.Status     `json:"status"`
 	MeasurementInterval string  `json:"measurementInterval"`
+	Canvas CanvasDto `json:"canvas"`
 }
 
 type CropPotRequest struct {

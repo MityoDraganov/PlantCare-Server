@@ -58,6 +58,7 @@ func sendReadAllSensorDataCommand(connection *wsTypes.Connection, cropPotID stri
     err := wsutils.SendMessage(connection, "", wsTypes.HandleSensorDataRequest, command)
     if err != nil {
         log.Printf("Failed to send sensor data request to crop pot %s: %v", cropPotID, err)
+        connectionManager.ConnManager.RemoveConnection(cropPotID);
         return
     }
 

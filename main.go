@@ -70,8 +70,8 @@ func main() {
 		&models.Update{},
 		&models.ActivePeriod{},
 		&models.Message{},
-		&models.PinnedCard{},
 		&models.Canvas{},
+		&models.PinnedCard{},
 	)
 	if err != nil {
 		log.Fatal("failed to migrate database:", err)
@@ -122,19 +122,12 @@ func main() {
 	drivers.HandleFunc("/{driverId}", controllers.EditDriver).Methods("PUT")
 	drivers.HandleFunc("/{driverId}", controllers.DeleteDriver).Methods("DELETE")
 
-	// --PINNED CARDS
-	pinnedCards := api.PathPrefix("/pinnedCards").Subrouter()
-	pinnedCards.Use(middlewears.PotMiddleware)
-	pinnedCards.HandleFunc("/{potId}", controllers.CreateCard).Methods("POST")
-	pinnedCards.HandleFunc("/{potId}", controllers.UpdateCard).Methods("PUT")
-	pinnedCards.HandleFunc("/{potId}", controllers.DeleteCard).Methods("DELETE")
-
 	//	--CANVAS
-	canvas := api.PathPrefix("/pinnedCards").Subrouter()
+	canvas := api.PathPrefix("/canvas").Subrouter()
 	canvas.Use(middlewears.PotMiddleware)
-	canvas.HandleFunc("/{potId}", controllers.CreateCanvas).Methods("POST")
+	canvas.HandleFunc("", controllers.GetCanvasesByUser).Methods("GET")
 	canvas.HandleFunc("/{potId}", controllers.UpdateCanvas).Methods("PUT")
-	canvas.HandleFunc("/{potId}", controllers.DeleteCanvas).Methods("DELETE")
+	//canvas.HandleFunc("/{potId}", controllers.DeleteCanvas).Methods("DELETE")
 
 	// --ADMIN ACTIONS--
 	adminR := r.NewRoute().Subrouter()

@@ -81,6 +81,10 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
         return fmt.Errorf("failed to upload driver OTA: %w", err)
     }
 
+	//remove connection from connection maanger
+
+	connectionManager.ConnManager.RemoveConnectionByInstance(potConn)
+
     return nil
 }
 

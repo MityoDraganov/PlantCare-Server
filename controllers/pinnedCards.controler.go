@@ -1,3 +1,4 @@
+// Import additional packages at the top if needed
 package controllers
 
 import (
@@ -6,147 +7,169 @@ import (
 	"PlantCare/models"
 	"PlantCare/utils"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/clerk/clerk-sdk-go/v2"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
+// GetCanvasesByUser retrieves all canvases and their pinned cards for crop pots belonging to the current user.
+func GetCanvasesByUser(w http.ResponseWriter, r *http.Request) {
+	// Assume user ID is available in context; replace with your actual user ID retrieval method
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		utils.JsonError(w, "Unauthorized: unable to extract session claims", http.StatusUnauthorized)
+		return
+	}
+	clerkUserID := claims.Subject
 
+	var canvases []models.Canvas
+	if err := initPackage.Db.
+		Joins("JOIN crop_pots ON crop_pots.id = canvases.crop_pot_id").
+		Where("crop_pots.user_id = ?", clerkUserID).
+		Preload("PinnedCards").
+		Find(&canvases).Error; err != nil {
+		utils.JsonError(w, "Failed to retrieve canvases", http.StatusInternalServerError)
+		return
+	}
+
+	// Convert canvases to DTOs
+	var canvasDtos []dtos.CanvasDto
+	for _, canvas := range canvases {
+		canvasDtos = append(canvasDtos, ToCanvasDTO(canvas))
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(canvasDtos)
+}
+
+// CreateCanvas creates a new Canvas with associated PinnedCards.
 func CreateCanvas(w http.ResponseWriter, r *http.Request) {
-	var cardDto dtos.PinnedCard
-
-	err := json.NewDecoder(r.Body).Decode(&cardDto)
+	var canvasDto dtos.CanvasDto
+	err := json.NewDecoder(r.Body).Decode(&canvasDto)
 	if err != nil {
 		log.Println(err)
 		utils.JsonError(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
 
-	result := initPackage.Db.Model(&models.PinnedCard{}).Create(cardDto)
+	// Convert DTO to Model with linked PinnedCards
+
+	canvas := models.Canvas{
+		CropPotID: canvasDto.CropPotID,
+	}
+
+	result := initPackage.Db.Create(&canvas).Clauses(clause.Returning{})
 	if result.Error != nil {
 		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Return the updated array of sensorDtos
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+	pinnedCards, _ := toPinnedCardsModel(canvasDto.PinnedCards, canvas.ID)
+
+	canvas.PinnedCards = pinnedCards
+
+	result = initPackage.Db.Updates(&canvas).Clauses(clause.Returning{})
+	if result.Error != nil {
+		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(canvas)
 }
 
-// UpdateCard updates an existing PinnedCard based on its ID.
+// UpdateCanvas updates an existing Canvas and its PinnedCards.
 func UpdateCanvas(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id") // Assuming the ID is passed as a query parameter.
-	var cardDto dtos.PinnedCard
+	id := r.URL.Query().Get("canvasId") // Canvas ID passed as a query parameter
+	var canvasDto dtos.CanvasDto
 
-	// Decode the request body into the DTO.
-	err := json.NewDecoder(r.Body).Decode(&cardDto)
+	err := json.NewDecoder(r.Body).Decode(&canvasDto)
 	if err != nil {
 		log.Println(err)
 		utils.JsonError(w, "Invalid JSON format", http.StatusBadRequest)
 		return
 	}
 
-	var cardDbObject models.PinnedCard
-	if err := initPackage.Db.First(&cardDbObject, id).Error; err != nil {
-		utils.JsonError(w, "Card not found", http.StatusNotFound)
+	// Find existing canvas
+	var canvas models.Canvas
+	if err := initPackage.Db.Preload("PinnedCards").First(&canvas, id).Error; err != nil {
+		utils.JsonError(w, "Canvas not found", http.StatusNotFound)
 		return
 	}
 
-	result := initPackage.Db.Model(cardDbObject).Updates(cardDto).Clauses(clause.Returning{})
-	if result.Error != nil {
-		log.Printf("Failed to update sensor: %v", result.Error)
-		utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
-		return
-	}
+	// Delete old PinnedCards and create new ones
+	initPackage.Db.Model(&canvas).Association("PinnedCards").Clear()
+	newPinnedCards, _ := toPinnedCardsModel(canvasDto.PinnedCards, canvas.ID)
+	canvas.CropPotID = canvasDto.CropPotID
+	canvas.PinnedCards = newPinnedCards
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(cardDbObject); err != nil {
-		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-// DeleteCard deletes a PinnedCard based on its ID.
-func DeleteCanvas(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id") // Assuming the ID is passed as a query parameter.
-
-	// Delete the pinned card in the database.
-	if err := initPackage.Db.Delete(&models.PinnedCard{}, id).Error; err != nil {
-		utils.JsonError(w, "Card not found", http.StatusNotFound)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent) // Respond with no content status.
-}
-
-
-
-func CreateCard(w http.ResponseWriter, r *http.Request) {
-	var cardDto dtos.PinnedCard
-
-	err := json.NewDecoder(r.Body).Decode(&cardDto)
-	if err != nil {
-		log.Println(err)
-		utils.JsonError(w, "Invalid JSON format", http.StatusBadRequest)
-		return
-	}
-
-	result := initPackage.Db.Model(&models.PinnedCard{}).Create(cardDto)
-	if result.Error != nil {
-		utils.JsonError(w, result.Error.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Return the updated array of sensorDtos
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-// UpdateCard updates an existing PinnedCard based on its ID.
-func UpdateCard(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id") // Assuming the ID is passed as a query parameter.
-	var cardDto dtos.PinnedCard
-
-	// Decode the request body into the DTO.
-	err := json.NewDecoder(r.Body).Decode(&cardDto)
-	if err != nil {
-		log.Println(err)
-		utils.JsonError(w, "Invalid JSON format", http.StatusBadRequest)
-		return
-	}
-
-	var cardDbObject models.PinnedCard
-	if err := initPackage.Db.First(&cardDbObject, id).Error; err != nil {
-		utils.JsonError(w, "Card not found", http.StatusNotFound)
-		return
-	}
-
-	result := initPackage.Db.Model(cardDbObject).Updates(cardDto).Clauses(clause.Returning{})
-	if result.Error != nil {
-		log.Printf("Failed to update sensor: %v", result.Error)
-		utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
+	if err := initPackage.Db.Session(&gorm.Session{FullSaveAssociations: true}).Save(&canvas).Error; err != nil {
+		utils.JsonError(w, "Failed to update canvas", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(cardDbObject); err != nil {
-		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
-	}
+	json.NewEncoder(w).Encode(canvas)
 }
 
-// DeleteCard deletes a PinnedCard based on its ID.
-func DeleteCard(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id") // Assuming the ID is passed as a query parameter.
-
-	// Delete the pinned card in the database.
-	if err := initPackage.Db.Delete(&models.PinnedCard{}, id).Error; err != nil {
-		utils.JsonError(w, "Card not found", http.StatusNotFound)
-		return
+// DeleteCanvas deletes a Canvas and its associated PinnedCards.
+func DeleteCanvas(id uint) *error {
+	if err := initPackage.Db.Delete(&models.Canvas{}, id).Error; err != nil {
+		return &err
 	}
 
-	w.WriteHeader(http.StatusNoContent) // Respond with no content status.
+	return nil
+}
+
+// Helper function to convert DTO PinnedCards to Model PinnedCards
+func toPinnedCardsModel(dtos []dtos.PinnedCardDto, canvasId uint) ([]models.PinnedCard, error) {
+	var cards []models.PinnedCard
+	for _, dto := range dtos {
+		card := models.PinnedCard{
+			CanvasID:      canvasId,
+			Title:         utils.CoalesceString(&dto.Title),
+			Icon:          utils.CoalesceString(&dto.Icon),
+			SensorID:      dto.SensorID,
+			StartLocation: dto.StartLocation,
+			Width:         dto.Width,
+			Height:        dto.Height,
+			Type: dto.Type,
+		}
+		cards = append(cards, card)
+	}
+	return cards, nil
+}
+
+func ToPinnedCardsDTO(cards []models.PinnedCard) []dtos.PinnedCardDto {
+	var cardsDto []dtos.PinnedCardDto
+
+	// Check if there are any cards
+	if len(cards) == 0 {
+		fmt.Println("No cards to convert")
+		return []dtos.PinnedCardDto{} // Return an empty slice
+	}
+
+	for _, card := range cards {
+		cardsDto = append(cardsDto, dtos.PinnedCardDto{
+			Title:    *utils.CoalesceString(card.Title),
+			Icon:     *utils.CoalesceString(card.Icon),
+			SensorID: card.SensorID,
+			StartLocation: card.StartLocation,
+			Width:    card.Width,
+			Height:   card.Height,
+			Type: card.Type,
+		})
+	}
+	return cardsDto
+}
+
+func ToCanvasDTO(canvas models.Canvas) dtos.CanvasDto {
+	return dtos.CanvasDto{
+		CropPotID:   canvas.CropPotID,
+		PinnedCards: ToPinnedCardsDTO(canvas.PinnedCards),
+	}
 }

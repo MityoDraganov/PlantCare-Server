@@ -31,8 +31,6 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	var potId uint
 	var sensorConfigs []SensorConfig
 
-	var cropPot *models.CropPot
-
 	err := json.NewDecoder(r.Body).Decode(&sensorDtos)
 	if err != nil {
 		log.Println(err)
@@ -72,19 +70,6 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 
 		if sensorDto.DriverUrl != "" {
 			log.Println("Updating Driver URL...")
-			cropPotIDStr := strconv.FormatUint(uint64(sensorDbObject.CropPotID), 10)
-			cropPot, err := FindCropPotById(cropPotIDStr)
-			cropPot.Status = models.StatusUpdating // Or set to models.StatusOffline based on conditions
-			if err := initPackage.Db.Save(&cropPot).Error; err != nil {
-				log.Printf("Failed to reset crop pot status: %v", err)
-				utils.JsonError(w, "Failed to reset crop pot status", http.StatusInternalServerError)
-				return
-			}
-			if err != nil {
-				log.Println("Crop pot not found:", err)
-				utils.JsonError(w, "Crop pot not found", http.StatusNotFound)
-				return
-			}
 			if sensorDbObject.Driver == nil {
 				log.Println("Driver not found, creating new driver.")
 				driver := models.Driver{
@@ -152,18 +137,11 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 
 	}()
 
-	cropPot.Status = models.StatusOnline // Or set to models.StatusOffline based on conditions
-	if err := initPackage.Db.Save(&cropPot).Error; err != nil {
-		log.Printf("Failed to reset crop pot status: %v", err)
-		utils.JsonError(w, "Failed to reset crop pot status", http.StatusInternalServerError)
-		return
-	}
 	// Commit the transaction after the OTA operation
 	if err := tx.Commit().Error; err != nil {
 		utils.JsonError(w, "Transaction commit failed", http.StatusInternalServerError)
 		return
 	}
-
 
 	// Return the updated array of sensorDtos
 	w.Header().Set("Content-Type", "application/json")
