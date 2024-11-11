@@ -30,6 +30,19 @@ func GetMessagesForUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(messages)
 }
 
+func MarkAllAsRead(w http.ResponseWriter, r *http.Request) {
+	claims, ok := clerk.SessionClaimsFromContext(r.Context())
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"error": "unauthorized"}`))
+		return
+	}
+	initPackage.Db.Model(&models.Message{}).Where("clerk_user_id = ?", claims.Subject).Update("is_read", true)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"message": "All messages marked as read"}`))
+}
+
 func CreateMessage(clerkUserId string, data string) error {
 	title := "Sensor issue"
 	message := models.Message{
@@ -47,9 +60,7 @@ func CreateMessage(clerkUserId string, data string) error {
 	return nil
 }
 
-func MarkAllAsRead(userId uint) {
-	
-}
+
 
 
 

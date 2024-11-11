@@ -18,6 +18,8 @@ type SensorDto struct {
 	Measurements    []models.Measurement `json:"measurements"`
 }
 
+
+
 type AttachSensor struct {
 	SerialNumber string  `json:"serialNumber"`
 	Alias        *string `json:"alias"`

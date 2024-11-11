@@ -2,6 +2,7 @@ package connectionManager
 
 import (
 	"PlantCare/websocket/wsTypes"
+	"fmt"
 	"sync"
 )
 
@@ -28,6 +29,7 @@ func (cm *ConnectionManager) RemoveConnection(potID string) {
 	cm.Mu.Lock()
 	defer cm.Mu.Unlock()
 	delete(cm.Connections, potID)
+	fmt.Println("Connection removed: ", potID)
 }
 
 // GetConnection retrieves a connection by pot ID
@@ -75,11 +77,12 @@ func (cm *ConnectionManager) GetConnectionByKey(key string) (*wsTypes.Connection
 func (cm *ConnectionManager) RemoveConnectionByInstance(conn *wsTypes.Connection) bool {
 	cm.Mu.Lock()
 	defer cm.Mu.Unlock()
-
+	
 	// Iterate through the Connections map to find the connection
 	for potID, c := range cm.Connections {
 		if c == conn {
 			delete(cm.Connections, potID)
+			fmt.Println("Connection removed: ", potID)
 			return true // Successfully removed the connection
 		}
 	}

@@ -112,28 +112,30 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		clerkUserID := claims.Subject
 		userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(clerkUserID)
 
-		potIDStr := strconv.FormatUint(uint64(potId), 10)
-		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
-		if !ok {
-			err := errors.New("connection not found for pot ID: " + potIDStr + "! Adding update to pendings.")
-			if isExisting {
-				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
+			potIDStr := strconv.FormatUint(uint64(potId), 10)
+			connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
+			if !ok {
+				err := errors.New("connection not found for pot ID: " + potIDStr + "! Adding update to pendings.")
+				if isExisting {
+					wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
+				}
+				otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
+				return
 			}
-			otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
-			return
-		}
-		if isExisting {
-			wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
-		}
-
-		if err := utils.UploadMultipleDrivers(driverURLs, connection); err != nil {
-			log.Printf("Failed to upload driver: %v", err)
-
 			if isExisting {
-				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
+				wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
 			}
-			return
-		}
+
+			connectionManager.ConnManager.RemoveConnectionByInstance(connection);
+
+			if err := utils.UploadMultipleDrivers(driverURLs, connection); err != nil {
+				log.Printf("Failed to upload driver: %v", err)
+
+				if isExisting {
+					wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
+				}
+				return
+			}
 
 	}()
 

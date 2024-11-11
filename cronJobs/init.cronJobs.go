@@ -29,7 +29,6 @@ func StartCronJobs() {
 
 	_, err = c.AddFunc("@every 1m", func() {
 		RequestAllSensorData()
-
 	})
 
 	if err != nil {

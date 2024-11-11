@@ -88,6 +88,7 @@ func main() {
 
 	// --INBOX--
 	api.HandleFunc("/inbox", controllers.GetMessagesForUser).Methods("GET")
+	api.HandleFunc("/inbox", controllers.MarkAllAsRead).Methods("PUT")
 
 	// --CROP POTS--
 	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
