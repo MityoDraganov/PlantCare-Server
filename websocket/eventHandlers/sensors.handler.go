@@ -161,7 +161,7 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 	alert.Message = "Please provide a driver for the sensor."
 	fmt.Println("cropPotDbObject.ClerkUserID")
 	fmt.Println(*cropPotDbObject.ClerkUserID)
-	controllers.CreateMessage(*cropPotDbObject.ClerkUserID, "Please provide a driver for the sensor.")
+	controllers.CreateMessage(*cropPotDbObject.ClerkUserID, "Please provide a driver for the sensor.", "Driver required")
 	wsutils.SendMessage(connection, wsTypes.DriverRequired, "", alert)
 
 	userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDbObject.ClerkUserID)

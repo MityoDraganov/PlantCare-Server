@@ -29,7 +29,7 @@ func CheckAndSendAlerts(connection wsTypes.Connection) {
 		log.Fatalf("Failed to marshal alert: %v", err)
 	}
 
-	controllers.CreateMessage(userID, string(alertString))
+	controllers.CreateMessage(userID, string(alertString), "New forecast alert")
 	sendAlertToUsers(alert, &connection)
 
 }

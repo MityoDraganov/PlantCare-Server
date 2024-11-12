@@ -43,8 +43,7 @@ func MarkAllAsRead(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"message": "All messages marked as read"}`))
 }
 
-func CreateMessage(clerkUserId string, data string) error {
-	title := "Sensor issue"
+func CreateMessage(clerkUserId string, data string, title string) error {
 	message := models.Message{
 		Title: &title,
 		ClerkUserID: clerkUserId,
