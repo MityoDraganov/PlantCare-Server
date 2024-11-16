@@ -13,12 +13,15 @@ import (
 	"strings"
 )
 
+// main repo url
+const repoURL = "https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/production.zip"
+
 func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connection) error {
     driverZipFilePath := "./driver.zip"
     repoZipFilePath := "./repo.zip"
-    driverExtractDir := "./extracted/repo/PlantCare-esp32-main/src/drivers"
+    driverExtractDir := "./extracted/repo/PlantCare-esp32-production/src/drivers"
     repoExtractDir := "./extracted/repo"
-	configJsonDir := "./extracted/repo/PlantCare-esp32-main/src"
+	configJsonDir := "./extracted/repo/PlantCare-esp32-production/src"
     sensorDriverConfig := make(map[string]string)
 
     // Clean up any previous artifacts
@@ -33,7 +36,7 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
         return err
     }
 
-    if err := DownloadFile("https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/main.zip", repoZipFilePath); err != nil {
+    if err := DownloadFile(repoURL, repoZipFilePath); err != nil {
         return err
     }
 
@@ -43,7 +46,7 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
 
     // Process each driver URL
     for serialNumber, driverURL := range driverURLs {
-        zipUrl, err := convertGitHubURLToZip(driverURL)
+        zipUrl, err := convertGitHubURLToZip(driverURL, "main")
         if err != nil {
             return err
         }
@@ -81,10 +84,7 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
         return fmt.Errorf("failed to upload driver OTA: %w", err)
     }
 
-	//remove connection from connection maanger
-
-	connectionManager.ConnManager.RemoveConnectionByInstance(potConn)
-
+	connectionManager.ConnManager.RemoveConnectionByInstance(potConn);
     return nil
 }
 
@@ -92,7 +92,7 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
 // UploadDriver handles the upload and processing of the driver
 func UploadDriver(GitURL string, potIdStr string) *error {
 
-	zipUrl, err := convertGitHubURLToZip(GitURL)
+	zipUrl, err := convertGitHubURLToZip(GitURL, "production")
 	if err != nil {
 		return &err
 	}
@@ -106,7 +106,7 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 
 	driverZipFilePath := "./driver.zip"
 	repoZipFilePath := "./repo.zip"
-	driverExtractDir := "./extracted/repo/PlantCare-esp32-main/lib"
+	driverExtractDir := "./extracted/repo/PlantCare-esp32-production/lib"
 	repoExtractDir := "./extracted/repo"
 
 	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
@@ -124,7 +124,7 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 	}
 
 	// Download the repository ZIP file
-	if err := DownloadFile("https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/main.zip", repoZipFilePath); err != nil {
+	if err := DownloadFile("https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/production.zip", repoZipFilePath); err != nil {
 		return &err
 	}
 
@@ -158,7 +158,7 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 }
 
 func uploadFirmwareOTA(repoExtractDir string, esp32IP string) error {
-	firmwarePath := filepath.Join(repoExtractDir, "PlantCare-esp32-main")
+	firmwarePath := filepath.Join(repoExtractDir, "PlantCare-esp32-production")
 	fmt.Println(firmwarePath)
 	// Extract the first part of the IP address
 	ipParts := strings.Split(esp32IP, ":")
@@ -185,7 +185,7 @@ func uploadFirmwareOTA(repoExtractDir string, esp32IP string) error {
 	return nil
 }
 
-func convertGitHubURLToZip(gitURL string) (string, error) {
+func convertGitHubURLToZip(gitURL string, branch string) (string, error) {
 	parsedURL, err := url.Parse(gitURL)
 	if err != nil {
 		return "", fmt.Errorf("invalid URL: %v", err)
@@ -205,8 +205,13 @@ func convertGitHubURLToZip(gitURL string) (string, error) {
 	owner := pathParts[1]
 	repo := pathParts[2]
 
-	// Construct the zip download URL
-	zipURL := fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/main.zip", owner, repo)
+	// Default to "main" branch if no branch is specified
+	if branch == "" {
+		branch = "main"
+	}
+
+	// Construct the zip download URL for the specified branch
+	zipURL := fmt.Sprintf("https://github.com/%s/%s/archive/refs/heads/%s.zip", owner, repo, branch)
 	return zipURL, nil
 }
 

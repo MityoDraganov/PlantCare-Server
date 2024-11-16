@@ -218,18 +218,6 @@ func FindCropPotById(id string) (*models.CropPot, error) {
 func FindPotByToken(token string) (*models.CropPot, error) {
 	var cropPot models.CropPot
 	if err := initPackage.Db.
-		Preload("Canvas").
-		Preload("Canvas.PinnedCards").
-		Preload("Sensors").
-		Preload("Sensors.Measurements").
-		Preload("Sensors.Driver").
-		Preload("Controls").
-		Preload("Controls.ActivePeriod").
-		Preload("Controls.Updates").
-		Preload("Controls.Condition").
-		Preload("Controls.Condition.DependentSensor").
-		Preload("Webhooks").
-		Preload("Webhooks.SubscribedEvents").
 		Where("token = ?", token).First(&cropPot).Error; err != nil {
 		return nil, err
 	}

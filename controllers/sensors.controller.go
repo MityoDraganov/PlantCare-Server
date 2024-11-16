@@ -126,7 +126,6 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 				wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
 			}
 
-			connectionManager.ConnManager.RemoveConnectionByInstance(connection);
 
 			if err := utils.UploadMultipleDrivers(driverURLs, connection); err != nil {
 				log.Printf("Failed to upload driver: %v", err)
@@ -136,6 +135,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 				}
 				return
 			}
+			
 
 	}()
 
