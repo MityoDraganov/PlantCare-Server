@@ -106,7 +106,7 @@ func PotMiddleware(w http.ResponseWriter, r *http.Request) {
 		}()
 	}
 
-	//wsutils.SendValidRequest(&connection, controllers.ToCropPotResponseDTO(*cropPotDbObject))
+	wsutils.SendValidRequest(&connection, controllers.ToCropPotResponseDTO(*cropPotDbObject))
 
 	ownerConnection, exists := connectionManager.ConnManager.GetConnectionByOwner(*cropPotDbObject.ClerkUserID)
 	if exists {
