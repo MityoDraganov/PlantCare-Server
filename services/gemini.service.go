@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -35,7 +34,8 @@ func Predict(inputData dtos.GeminiRequest) (*string, error) {
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, option.WithAPIKey(os.Getenv("GEMINI_API_KEY")))
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
+		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 	defer client.Close()
 

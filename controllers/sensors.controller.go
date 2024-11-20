@@ -173,7 +173,7 @@ func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error)
 func GetMeasurementsBySensorId(id uint) dtos.SensorMeasurementsSummary {
 	sensor, err := findSensorById(id)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Println(err)
 	}
 
 	SensorMeasurementsSummaryDto := dtos.SensorMeasurementsSummary{

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -75,7 +74,7 @@ func getWeatherForecast(apiKey string, location string) (*dtos.ForecastDTO, erro
 func GetIndoorForecast(location string, userId string) (*string, error) {
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		fmt.Println("Error loading .env file")
 	}
 
 	apiKey := os.Getenv("WEATHER_API_KEY")

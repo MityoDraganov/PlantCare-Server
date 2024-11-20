@@ -6,6 +6,7 @@ import (
 	"PlantCare/websocket/wsTypes"
 	wsutils "PlantCare/websocket/wsUtils"
 	"encoding/json"
+	"fmt"
 	"log"
 )
 
@@ -17,7 +18,7 @@ func CheckAndSendAlerts(connection wsTypes.Connection) {
 	userID := connection.Context.Value(wsTypes.CropPotIDKey).(string)
 	forecast, err := services.GetIndoorForecast("Sliven", userID)
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err.Error())
 	}
 
 	alert := wsTypes.Alert{
@@ -26,7 +27,7 @@ func CheckAndSendAlerts(connection wsTypes.Connection) {
 
 	alertString, err := json.Marshal(alert)
 	if err != nil {
-		log.Fatalf("Failed to marshal alert: %v", err)
+		fmt.Println("Failed to marshal alert: %v", err)
 	}
 
 	controllers.CreateMessage(userID, string(alertString), "New forecast alert")

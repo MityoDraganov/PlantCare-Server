@@ -6,7 +6,6 @@ import (
 	"PlantCare/initPackage"
 	"PlantCare/models"
 	"PlantCare/utils"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -90,13 +89,13 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 
 	potID64, err := strconv.ParseUint(potIDStr, 10, 32)
 	if err != nil {
-		log.Fatal(err.Error())
+		fmt.Println(err.Error())
 		return
 	}
 	potIDUint := uint(potID64)
 	cropPotDbObject, err := controllers.FindCropPotById(potIDStr)
 	if err != nil {
-		log.Fatal("Pot not found!: " + err.Error())
+		fmt.Println("Pot not found!: " + err.Error())
 	}
 
 	fmt.Println(sensorDto.SerialNumber)
@@ -140,7 +139,7 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 	}
 	err = controllers.AttachedStateUpdater(sensorDbObject, true)
 	if err != nil {
-		log.Fatal("Error changing attached state: ", err)
+		fmt.Println("Error changing attached state: ", err)
 		return
 	}
 
@@ -148,7 +147,7 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 	sensorDriver, err := controllers.FindDriverBySensorId(sensorDbObject.ID)
 	fmt.Println(sensorDriver)
 	if err != nil && err != gorm.ErrRecordNotFound {
-		log.Fatal("Error here 101")
+		fmt.Println("Error while finding driver: ", err)
 		return
 	}
 
@@ -189,7 +188,7 @@ func (h *Handler) HandleDetachSensor(data json.RawMessage, connection *wsTypes.C
 
 	cropPotDbObject, err := controllers.FindCropPotById(potIDStr)
 	if err != nil {
-		log.Fatal("Pot not found!: " + err.Error())
+		fmt.Println("Pot not found!: " + err.Error())
 	}
 
 	fmt.Println(sensorDto.SerialNumber)
@@ -211,7 +210,7 @@ func (h *Handler) HandleDetachSensor(data json.RawMessage, connection *wsTypes.C
 	}
 	err = controllers.AttachedStateUpdater(sensorDbObject, false)
 	if err != nil {
-		log.Fatal("Error changing attached state: ", err)
+		fmt.Println("Error changing attached state: ", err)
 		return
 	}
 
