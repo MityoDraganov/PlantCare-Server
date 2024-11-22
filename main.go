@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	
+
 	cronjobs.StartCronJobs()
 
 	clerk.SetKey(os.Getenv("CLERK_API_KEY"))
@@ -84,6 +84,14 @@ func main() {
 
 	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister)
 
+	// PUBLIC ROUTES
+	//test route
+	r.HandleFunc("/",
+		func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"message": "Server is running"}`))
+		}).Methods("GET")
 	// PROTECTED ROUTES
 
 	// --INBOX--
