@@ -82,7 +82,7 @@ func main() {
 		log.Fatal("failed to set crop pots to offline on startup:", err)
 	}
 
-	r.HandleFunc("/api/v1/users/clerk/register", controllers.ClerkUserRegister)
+	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister).Methods("POST");
 
 	// PUBLIC ROUTES
 	//test route
