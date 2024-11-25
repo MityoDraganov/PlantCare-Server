@@ -153,9 +153,6 @@ func main() {
 	})
 
 	handler := c.Handler(r)
-	certFile := "/etc/letsencrypt/live/plantscare.sytes.net/fullchain.pem"
-	keyFile := "/etc/letsencrypt/live/plantscare.sytes.net/privkey.pem"
-
-	fmt.Println("Server listening on https://plantscare.sytes.net:443")
-	log.Fatal(http.ListenAndServeTLS(":8000", certFile, keyFile, handler))
+	fmt.Println("Server listening on port 8000!")
+	log.Fatal(http.ListenAndServe(":8000", handler))
 }
