@@ -146,13 +146,16 @@ func main() {
 	websocket.SetupWebSocketRoutes(r)
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "192.168.0.120", "https://plantscare.sytes.net", "http://plantscare.sytes.net/"},
+		AllowedOrigins:   []string{"http://localhost:5173", "192.168.0.120", "https://plantscare.sytes.net", "http://plantscare.sytes.net"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE"},
 		AllowedHeaders:   []string{"Authorization", "Content-Type"},
 		AllowCredentials: true,
 	})
 
 	handler := c.Handler(r)
-	fmt.Println("Server listening on port 8000!")
-	log.Fatal(http.ListenAndServe(":8000", handler))
+	certFile := "/etc/letsencrypt/live/plantscare.sytes.net/fullchain.pem"
+	keyFile := "/etc/letsencrypt/live/plantscare.sytes.net/privkey.pem"
+
+	fmt.Println("Server listening on https://plantscare.sytes.net:443")
+	log.Fatal(http.ListenAndServeTLS(":8000", certFile, keyFile, handler))
 }
