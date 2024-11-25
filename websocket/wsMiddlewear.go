@@ -123,7 +123,7 @@ func PotMiddleware(w http.ResponseWriter, r *http.Request) {
 }
 
 func SetupWebSocketRoutes(r *mux.Router) {
-	ws := r.PathPrefix("/v1").Subrouter()
+	ws := r.PathPrefix("/api/v1").Subrouter()
 
 	potWs := ws.PathPrefix("/pots").Subrouter()
 
