@@ -2,92 +2,98 @@ package utils
 
 import (
 	"PlantCare/websocket/connectionManager"
+	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
-	"bytes"
-	"errors"
+	wsutils "PlantCare/websocket/wsUtils"
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
 // main repo url
 const repoURL = "https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/production.zip"
+const firmwareUpdateURL = "https://firebasestorage.googleapis.com/v0/b/plantcare-436309.appspot.com/o/firmwareUpdates%2Ffirmware.bin?alt=media&token=3a373153-8f1c-467e-b829-9c323b5de3b1"
 
 func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connection) error {
-    driverZipFilePath := "./driver.zip"
-    repoZipFilePath := "./repo.zip"
-    driverExtractDir := "./extracted/repo/PlantCare-esp32-production/src/drivers"
-    repoExtractDir := "./extracted/repo"
+	driverZipFilePath := "./driver.zip"
+	repoZipFilePath := "./repo.zip"
+	driverExtractDir := "./extracted/repo/PlantCare-esp32-production/src/drivers"
+	repoExtractDir := "./extracted/repo"
 	configJsonDir := "./extracted/repo/PlantCare-esp32-production/src"
-    sensorDriverConfig := make(map[string]string)
+	sensorDriverConfig := make(map[string]string)
 
-    // Clean up any previous artifacts
-    if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
+	// Clean up any previous artifacts
+	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(driverExtractDir, os.ModePerm); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(repoExtractDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	if err := DownloadFile(repoURL, repoZipFilePath); err != nil {
+		return err
+	}
+
+	if err := Unzip(repoZipFilePath, repoExtractDir); err != nil {
+		return err
+	}
+
+	// Process each driver URL
+	for serialNumber, driverURL := range driverURLs {
+		zipUrl, err := convertGitHubURLToZip(driverURL, "main")
+		if err != nil {
+			return err
+		}
+
+		if err := DownloadFile(zipUrl, driverZipFilePath); err != nil {
+			return err
+		}
+
+		if err := Unzip(driverZipFilePath, driverExtractDir); err != nil {
+			return err
+		}
+
+		// Find the driver source directory containing the C++ class
+		driverFilePath, err := FindSrcDir(driverExtractDir, driverURL)
+		if err != nil {
+			return err
+		}
+
+		className, err := FindClassName(driverFilePath)
+		if err != nil {
+			return err
+		}
+
+		// Store the configuration based on the serial number
+		sensorDriverConfig[serialNumber] = className
+	}
+
+	// Write the configuration JSON file
+	configPath := filepath.Join(configJsonDir, "config.json")
+	if err := WriteConfigJSON(configPath, sensorDriverConfig); err != nil {
+		return err
+	}
+
+	message := wsDtos.FirmwareCommand{
+		Command: string(wsTypes.FirmwareUpdate),
+		DownloadUrl: firmwareUpdateURL,
+    }
+
+	fmt.Println("Sending firmware message")
+	if err := wsutils.SendMessage(potConn, "", wsTypes.FirmwareUpdate, message); err != nil {
+        fmt.Println("Failed to send firmware update message:", err)
         return err
     }
 
-    if err := os.MkdirAll(driverExtractDir, os.ModePerm); err != nil {
-        return err
-    }
-    if err := os.MkdirAll(repoExtractDir, os.ModePerm); err != nil {
-        return err
-    }
-
-    if err := DownloadFile(repoURL, repoZipFilePath); err != nil {
-        return err
-    }
-
-    if err := Unzip(repoZipFilePath, repoExtractDir); err != nil {
-        return err
-    }
-
-    // Process each driver URL
-    for serialNumber, driverURL := range driverURLs {
-        zipUrl, err := convertGitHubURLToZip(driverURL, "main")
-        if err != nil {
-            return err
-        }
-
-        if err := DownloadFile(zipUrl, driverZipFilePath); err != nil {
-            return err
-        }
-
-        if err := Unzip(driverZipFilePath, driverExtractDir); err != nil {
-            return err
-        }
-
-        // Find the driver source directory containing the C++ class
-        driverFilePath, err := FindSrcDir(driverExtractDir, driverURL)
-        if err != nil {
-            return err
-        }
-
-        className, err := FindClassName(driverFilePath)
-        if err != nil {
-            return err
-        }
-
-        // Store the configuration based on the serial number
-        sensorDriverConfig[serialNumber] = className
-    }
-
-    // Write the configuration JSON file
-    configPath := filepath.Join(configJsonDir, "config.json")
-    if err := WriteConfigJSON(configPath, sensorDriverConfig); err != nil {
-        return err
-    }
-
-    if err := uploadFirmwareOTA(repoExtractDir, potConn.IP); err != nil {
-        return fmt.Errorf("failed to upload driver OTA: %w", err)
-    }
-
-	connectionManager.ConnManager.RemoveConnectionByInstance(potConn);
-    return nil
+	connectionManager.ConnManager.RemoveConnectionByInstance(potConn)
+	return nil
 }
-
 
 // UploadDriver handles the upload and processing of the driver
 func UploadDriver(GitURL string, potIdStr string) *error {
@@ -97,12 +103,12 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 		return &err
 	}
 
-	connection, ok := connectionManager.ConnManager.GetConnection(potIdStr)
-	if !ok {
-		err := errors.New("connection not found")
-		fmt.Println(err)
-		return &err
-	}
+	// connection, ok := connectionManager.ConnManager.GetConnection(potIdStr)
+	// if !ok {
+	// 	err := errors.New("connection not found")
+	// 	fmt.Println(err)
+	// 	return &err
+	// }
 
 	driverZipFilePath := "./driver.zip"
 	repoZipFilePath := "./repo.zip"
@@ -146,42 +152,14 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 
 	}
 
-	if err := uploadFirmwareOTA(repoExtractDir, connection.IP); err != nil {
-		return &err
-	}
+	// if err := uploadFirmwareOTA(repoExtractDir, connection.IP); err != nil {
+	// 	return &err
+	// }
 
 	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
 		return &err
 	}
 
-	return nil
-}
-
-func uploadFirmwareOTA(repoExtractDir string, esp32IP string) error {
-	firmwarePath := filepath.Join(repoExtractDir, "PlantCare-esp32-production")
-	fmt.Println(firmwarePath)
-	// Extract the first part of the IP address
-	ipParts := strings.Split(esp32IP, ":")
-
-	// Hardcode the port to 8266
-	otaAddress := ipParts[0] + ":8266"
-	fmt.Println(otaAddress)
-
-	// Prepare the PlatformIO OTA command
-	cmd := exec.Command("pio", "run", "-e", "esp32dev_ota", "--target", "upload", "-v")
-	cmd.Dir = firmwarePath
-
-	var out bytes.Buffer
-	var errOut bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &errOut
-
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("OTA upload failed: %s\nstdout: %s\nstderr: %s", err.Error(), out.String(), errOut.String())
-	}
-
-	fmt.Printf("OTA upload output: %s\n", out.String())
 	return nil
 }
 

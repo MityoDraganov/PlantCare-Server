@@ -28,6 +28,7 @@ const (
 	AsyncError   Event = "asyncError"
 	AsyncPromise Event = "asyncPromise"
 	HandleSensorDataRequest Event = "HandleSensorDataRequest"
+	FirmwareUpdate Event = "FirmwareUpdate"
 )
 
 type StatusResponse string
