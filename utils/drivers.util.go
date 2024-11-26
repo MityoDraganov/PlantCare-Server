@@ -99,6 +99,9 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
 
 	destinationPath := "firmwareUpdates/" + time.Now().Format("20060102150405") + ".bin"
 	file, err := os.Open(firmwarePath + "/.pio/build/esp32dev/firmware.bin")
+	if err != nil {
+		return err
+	}
 	firmwareUrl, err := firebaseUtil.UploadFile(file, destinationPath)
 	if err != nil {
 		return err
