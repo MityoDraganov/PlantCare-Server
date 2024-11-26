@@ -5,6 +5,7 @@ import (
 	"PlantCare/initPackage"
 	"PlantCare/models"
 	"PlantCare/utils"
+	"PlantCare/utils/firebaseUtil"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -81,7 +82,7 @@ func UploadDriver(w http.ResponseWriter, r *http.Request) {
 	destinationPath := "drivers/" + header.Filename
 
 	// Upload file to Firebase
-	imageUrl, err := utils.UploadFile(file, destinationPath)
+	imageUrl, err := firebaseUtil.UploadFile(file, destinationPath)
 	if err != nil {
 		fmt.Println(err)
 		utils.JsonError(w, "Failed to upload image to Firebase", http.StatusInternalServerError)
@@ -144,7 +145,7 @@ func EditDriver(w http.ResponseWriter, r *http.Request) {
 		destinationPath := "drivers/" + header.Filename
 
 		// Upload the new file to Firebase
-		imageUrl, err := utils.UploadFile(file, destinationPath)
+		imageUrl, err := firebaseUtil.UploadFile(file, destinationPath)
 		if err != nil {
 			utils.JsonError(w, "Failed to upload image to Firebase", http.StatusInternalServerError)
 			return

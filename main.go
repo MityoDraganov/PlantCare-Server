@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-
+	"PlantCare/utils/firebaseUtil"
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 
@@ -14,7 +14,6 @@ import (
 	"PlantCare/initPackage"
 	"PlantCare/middlewears"
 	"PlantCare/models"
-	"PlantCare/utils"
 	"PlantCare/websocket"
 
 	"gorm.io/driver/sqlserver"
@@ -47,7 +46,7 @@ func main() {
 	api := r.PathPrefix("/api/v1").Subrouter()
 
 	const credentialsFile = "./firebase_service_account.json"
-	_, err = utils.InitializeApp(credentialsFile)
+	_, err = firebaseUtil.InitializeApp(credentialsFile)
 	if err != nil {
 		log.Fatalf("Failed to initialize Firebase app: %v", err)
 	}

@@ -1,20 +1,23 @@
 package utils
 
 import (
+	"PlantCare/utils/firebaseUtil"
 	"PlantCare/websocket/connectionManager"
 	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
 	wsutils "PlantCare/websocket/wsUtils"
+	"bytes"
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // main repo url
 const repoURL = "https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/production.zip"
-const firmwareUpdateURL = "https://firebasestorage.googleapis.com/v0/b/plantcare-436309.appspot.com/o/firmwareUpdates%2Ffirmware.bin?alt=media&token=3a373153-8f1c-467e-b829-9c323b5de3b1"
 
 func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connection) error {
 	driverZipFilePath := "./driver.zip"
@@ -80,16 +83,37 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
 		return err
 	}
 
+
+	// Prepare the PlatformIO OTA command
+	firmwarePath := filepath.Join(repoExtractDir, "PlantCare-esp32-production")
+	cmd := exec.Command("pio", "run")
+	cmd.Dir = firmwarePath
+	var out bytes.Buffer
+	var errOut bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &errOut
+	err := cmd.Run()
+	if err != nil {
+		return fmt.Errorf("OTA upload failed: %s\nstdout: %s\nstderr: %s", err.Error(), out.String(), errOut.String())
+	}
+
+	destinationPath := "firmwareUpdates/" + time.Now().Format("20060102150405") + ".bin"
+	file, err := os.Open(firmwarePath + "/.pio/build/esp32dev/firmware.bin")
+	firmwareUrl, err := firebaseUtil.UploadFile(file, destinationPath)
+	if err != nil {
+		return err
+	}
+
 	message := wsDtos.FirmwareCommand{
-		Command: string(wsTypes.FirmwareUpdate),
-		DownloadUrl: firmwareUpdateURL,
-    }
+		Command:     string(wsTypes.FirmwareUpdate),
+		DownloadUrl: firmwareUrl,
+	}
 
 	fmt.Println("Sending firmware message")
 	if err := wsutils.SendMessage(potConn, "", wsTypes.FirmwareUpdate, message); err != nil {
-        fmt.Println("Failed to send firmware update message:", err)
-        return err
-    }
+		fmt.Println("Failed to send firmware update message:", err)
+		return err
+	}
 
 	connectionManager.ConnManager.RemoveConnectionByInstance(potConn)
 	return nil
