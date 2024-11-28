@@ -9,7 +9,6 @@ type SensorDto struct {
 	SerialNumber        string  `json:"serialNumber"`
 	Alias               *string  `json:"alias"`
 	Description         *string `json:"description"`
-	MeasurementInterval string  `json:"measurementInterval"`
 	Type                models.Type
 	IsAttached  bool `json:"isAttached"`
 
@@ -30,7 +29,6 @@ type SensorUserRequestDto struct {
 	ID uint `json:"id"`
 	Alias               string  `json:"alias"`
 	Description         *string `json:"description"`
-	MeasurementInterval string  `json:"measurementInterval"`
 	DriverUrl           string  `json:"driverUrl"`
 }
 
