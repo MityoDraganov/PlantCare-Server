@@ -49,7 +49,23 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 
 		if measurementDataDbObject.Error != nil {
 			wsutils.SendErrorResponse(connection, http.StatusNotFound)
+			return;
 		}
+
+		cropPotDbObject, err := controllers.FindCropPotById(strconv.FormatUint(uint64(sensorDbObject.CropPotID), 10))
+		if err != nil {
+			wsutils.SendErrorResponse(connection, http.StatusBadRequest)
+			return;
+		}
+		userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDbObject.ClerkUserID)
+		if isExisting {
+			UserMeasurementResponse := wsDtos.UserMeasurementResponse{
+				SensorID: sensorDbObject.ID,
+				Value:   sensorData.Value,
+			}
+			wsutils.SendMessage(userConn, "", wsTypes.HandlePotMeasurement, UserMeasurementResponse)
+		}
+
 
 		webhooks, err := controllers.GetSubscribedWebhooksForSensor(sensorDbObject.ID)
 		if err != nil {
@@ -71,6 +87,11 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 		fmt.Println(measurementDataDbObject)
 	}
 	wsutils.SendValidResponse(connection, nil)
+
+
+	// sending an alert to all users
+
+
 }
 
 func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.Connection) {

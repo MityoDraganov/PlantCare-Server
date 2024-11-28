@@ -22,6 +22,7 @@ const (
 	HandleAttachSensor  Event = "handleAttachSensor"
 	HandleDetachSensor  Event = "handleDetachSensor"
 	UpdatedPot          Event = "updatedPot"
+	HandlePotMeasurement Event = "PotMeasurements"
 
 	NotificationAlert Event = "notificationAlert"
 

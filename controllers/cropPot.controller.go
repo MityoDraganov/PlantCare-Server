@@ -2,15 +2,19 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"reflect"
+	"strconv"
 	"time"
 
 	"PlantCare/dtos"
 	"PlantCare/initPackage"
+	"PlantCare/lib"
 	"PlantCare/utils"
+	"PlantCare/websocket/connectionManager"
 
 	"PlantCare/models"
 
@@ -79,6 +83,27 @@ func AssignCropPotToUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cropPotDBObject)
+}
+
+func ManualSensorDataUpdate(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	id := params["potId"]
+
+	cropPotDBObject, err := FindCropPotById(id)
+	if err != nil {
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	potIDStr := strconv.FormatUint(uint64(cropPotDBObject.ID), 10)
+	connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
+	if !ok {
+		err := errors.New("connection not found for pot ID: " + potIDStr + "! Can not update pot measurements.")
+		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
+		return;
+	}
+
+	lib.SendReadAllSensorDataCommand(connection, potIDStr)
 }
 
 func UpdateCropPot(w http.ResponseWriter, r *http.Request) {

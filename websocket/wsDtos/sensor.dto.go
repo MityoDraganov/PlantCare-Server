@@ -5,3 +5,8 @@ type SensorDTO struct {
 	Alias        string `json:"alias"`
 	Description  *string
 }
+
+type UserMeasurementResponse struct {
+	SensorID uint    `json:"sensorId"`
+	Value    float32 `json:"value"`
+}

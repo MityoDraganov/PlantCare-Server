@@ -100,6 +100,7 @@ func main() {
 	// --CROP POTS--
 	api.HandleFunc("/cropPots/assign/{token}", controllers.AssignCropPotToUser).Methods("POST")
 	api.HandleFunc("/cropPots", controllers.GetCropPotsForUser).Methods("GET")
+	api.HandleFunc("/cropPots/measure/{potId}", controllers.ManualSensorDataUpdate).Methods("GET")
 
 	pots := api.PathPrefix("/cropPots").Subrouter()
 	pots.Use(middlewears.PotMiddleware)

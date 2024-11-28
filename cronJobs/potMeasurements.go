@@ -2,11 +2,10 @@ package cronjobs
 
 import (
 	"PlantCare/controllers"
+	"PlantCare/lib"
 	"PlantCare/services"
 	"PlantCare/websocket/connectionManager"
-	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
-	wsutils "PlantCare/websocket/wsUtils"
 	"fmt"
 	"log"
 	"time"
@@ -41,26 +40,9 @@ func RequestAllSensorData() {
 
             if time.Since(lastMeasurementTime) >= cropPot.MeasuremntInterval {
 				fmt.Println("sendReadAllSensorDataCommand")
-                sendReadAllSensorDataCommand(connection, cropPotID)
+                lib.SendReadAllSensorDataCommand(connection, cropPotID)
             }
         }
     }
 }
 
-// sendReadAllSensorDataCommand sends the readAllSensorData command over WebSocket
-func sendReadAllSensorDataCommand(connection *wsTypes.Connection, cropPotID string) {
-    command := wsDtos.SensorCommand{
-        Command: "readAllSensorData",
-    }
-
-
-    // Send the command via WebSocket
-    err := wsutils.SendMessage(connection, "", wsTypes.HandleSensorDataRequest, command)
-    if err != nil {
-        log.Printf("Failed to send sensor data request to crop pot %s: %v", cropPotID, err)
-        connectionManager.ConnManager.RemoveConnection(cropPotID);
-        return
-    }
-
-    log.Printf("Sensor data request sent to crop pot %s", cropPotID)
-}
