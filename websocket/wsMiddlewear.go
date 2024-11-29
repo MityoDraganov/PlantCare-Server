@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"PlantCare/models"
 	"PlantCare/utils"
 	"PlantCare/websocket/connectionManager"
-	"PlantCare/websocket/otaManager"
 	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
 	"PlantCare/websocket/wsUtils"
@@ -79,32 +77,32 @@ func PotMiddleware(w http.ResponseWriter, r *http.Request) {
 
 	// Add connection to the manager
 	connectionManager.ConnManager.AddConnection(potIDStr, connection)
-	isOtaPending := otaManager.OTAManager.IsOTAPending(potIDStr)
-	if isOtaPending {
-		go func() {
-			pendingOta, ok := otaManager.OTAManager.GetPendingOTA(potIDStr)
-			if !ok {
-				err := errors.New("error with the pending ota")
-				fmt.Println(err)
+	// isOtaPending := otaManager.OTAManager.IsOTAPending(potIDStr)
+	// if isOtaPending {
+	// 	go func() {
+	// 		pendingOta, ok := otaManager.OTAManager.GetPendingOTA(potIDStr)
+	// 		if !ok {
+	// 			err := errors.New("error with the pending ota")
+	// 			fmt.Println(err)
 
-				utils.JsonError(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+	// 			utils.JsonError(w, err.Error(), http.StatusBadRequest)
+	// 			return
+	// 		}
 
-			connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
-			if !ok {
-				err := errors.New("connection not found for pot ID: " + potIDStr)
-				fmt.Println(err)
+	// 		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
+	// 		if !ok {
+	// 			err := errors.New("connection not found for pot ID: " + potIDStr)
+	// 			fmt.Println(err)
 
-				utils.JsonError(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+	// 			utils.JsonError(w, err.Error(), http.StatusBadRequest)
+	// 			return
+	// 		}
 
-			if err := utils.UploadMultipleDrivers(pendingOta.DriverURLs, connection); err != nil {
-				fmt.Printf("Failed to upload driver: %v", err)
-			}
-		}()
-	}
+	// 		if err := utils.UploadMultipleDrivers(pendingOta.DriverURLs, connection); err != nil {
+	// 			fmt.Printf("Failed to upload driver: %v", err)
+	// 		}
+	// 	}()
+	// }
 
 	wsutils.SendValidRequest(&connection, controllers.ToCropPotResponseDTO(*cropPotDbObject))
 
