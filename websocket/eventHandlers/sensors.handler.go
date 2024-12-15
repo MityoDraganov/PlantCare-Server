@@ -17,9 +17,24 @@ import (
 
 	"encoding/json"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+var (
+    mlData = prometheus.NewGaugeVec(
+        prometheus.GaugeOpts{
+            Name: "ml_data",
+            Help: "ML data for training",
+        },
+        []string{"metric_name"},
+    )
+)
+
+func InitPrometheus() {
+	prometheus.MustRegister(mlData)
+}
 
 func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.Connection) {
 	var sensorDataDto []wsDtos.SensorMeasuremntDto
@@ -223,4 +238,22 @@ func (h *Handler) HandleDetachSensor(data json.RawMessage, connection *wsTypes.C
 		wsutils.SendMessage(userConn, wsTypes.DriverRequired, "", alert)
 	}
 
+}
+
+
+func (h *Handler) GatherMlData(data json.RawMessage, connection *wsTypes.Connection) {
+    var mlDataDto wsDtos.MlDataDto
+    err := json.Unmarshal(data, &mlDataDto)
+    if err != nil {
+        fmt.Println("Error while unmarshaling sensor data:", err)
+        return
+    }
+
+    // Store the data in Prometheus
+    mlData.With(prometheus.Labels{"metric_name": "ph"}).Set(float64(mlDataDto.Ph))
+    mlData.With(prometheus.Labels{"metric_name": "temperature"}).Set(float64(mlDataDto.Temperature))
+    mlData.With(prometheus.Labels{"metric_name": "soilMoisture"}).Set(float64(mlDataDto.SoilMoisture))
+
+    // Optionally, send a response back to the client
+	wsutils.SendValidResponse(connection, nil)
 }

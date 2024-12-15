@@ -13,6 +13,7 @@ type Role string
 const (
 	UserRole Role = "user"
 	PotRole  Role = "pot"
+	MLRole   Role = "ml"
 )
 
 type Event string

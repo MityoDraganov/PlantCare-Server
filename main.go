@@ -1,11 +1,13 @@
 package main
 
 import (
+	"PlantCare/utils/firebaseUtil"
+	"PlantCare/websocket/eventHandlers"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"PlantCare/utils/firebaseUtil"
+
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 
@@ -24,12 +26,16 @@ import (
 	"github.com/joho/godotenv"
 )
 
+
+
 func InitDB() *gorm.DB {
 	dsn := "sqlserver://server:P@ssw0rd123!@localhost:1433?database=Plant_Care"
 	db, err := gorm.Open(sqlserver.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database:", err)
 	}
+
+
 	return db
 }
 
@@ -50,6 +56,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize Firebase app: %v", err)
 	}
+
+	eventHandlers.InitPrometheus()
 
 	authMiddleware := clerkhttp.RequireHeaderAuthorization()
 	api.Use(authMiddleware)

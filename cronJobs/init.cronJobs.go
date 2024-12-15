@@ -31,6 +31,10 @@ func StartCronJobs() {
 		RequestAllSensorData()
 	})
 
+	_, err = c.AddFunc("@every 1h", func() {
+		CollectMlData()
+	})
+
 	if err != nil {
 		log.Fatalf("Error scheduling cron job: %v", err)
 	}
