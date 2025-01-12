@@ -1,6 +1,7 @@
 package models
 
 import (
+	"PlantCare/websocket/wsTypes"
 	"time"
 
 	"gorm.io/gorm"
@@ -8,7 +9,9 @@ import (
 
 type Measurement struct {
 	gorm.Model
+	MeasurementGroupID uint
 	CreatedAt time.Time
-	SensorID uint    `json:"sensorId"`
-	Value    float32 `json:"value"`
+	SensorID  uint         `json:"sensorId"`
+	Value     float32      `json:"value"`
+	Role      wsTypes.Role `json:"role"`
 }

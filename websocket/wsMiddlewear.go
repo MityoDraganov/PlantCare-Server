@@ -152,7 +152,7 @@ func UserWsMiddlewear(w http.ResponseWriter, r *http.Request) {
 			Timestamp: message.CreatedAt,
 		}
 
-		wsutils.SendMessage(&connection, wsTypes.MessageFound, "", messageDto)
+		wsutils.SendMessage(&connection, message.StatusResponse, message.Event, messageDto)
 	}
 	go HandleMessages(&connection, nil)
 	go wsutils.SendMessages(&connection)

@@ -98,7 +98,7 @@ func GetIndoorForecast(location string, userId string) (*string, error) {
 	historicalIndoorsWeather := controllers.GetMeasurementsBySensorId(cropPots[0].Sensors[0].ID)
 
 	// Call Predict with the correct structure
-	indoorForecast, err := Predict(dtos.GeminiRequest{
+	indoorForecast, err := PredictForecast(dtos.GeminiRequest{
 		PastIndoors:    historicalIndoorsWeather,
 		PastOutdoors:   *historicalOutdoorsWeather,
 		FutureOutdoors: *futureOutdoorsWeather,

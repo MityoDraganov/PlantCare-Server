@@ -16,30 +16,41 @@ import (
 	"fmt"
 
 	"encoding/json"
-
-	"github.com/prometheus/client_golang/prometheus"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-var (
-    mlData = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "ml_data",
-            Help: "ML data for training",
-        },
-        []string{"metric_name"},
-    )
-)
-
-func InitPrometheus() {
-	prometheus.MustRegister(mlData)
-}
-
 func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.Connection) {
+	fmt.Println(data)
 	var sensorDataDto []wsDtos.SensorMeasuremntDto
+	var measurements []models.Measurement
 
-	err := json.Unmarshal(data, &sensorDataDto)
+	role := connection.Role
+	potIdStr := connection.Context.Value(wsTypes.CropPotIDKey).(string)
+	cropPotDBObject, err := controllers.FindCropPotById(potIdStr)
+	if err != nil {
+		fmt.Println("Error finding crop pot by id:", err)
+		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
+		return
+	}
+
+	potId, err := strconv.ParseUint(potIdStr, 10, 32)
+	if err != nil {
+		fmt.Println("Error converting potIdStr to uint:", err)
+		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
+		return
+	}
+	measurementGroup := models.MeasurementGroup{
+		CropPotID: uint(potId),
+	}
+
+	if err := initPackage.Db.Create(&measurementGroup).Clauses(clause.Returning{}).Error; err != nil {
+		fmt.Println("Error creating measurement group:", err)
+		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
+		return
+	}
+
+	err = json.Unmarshal(data, &sensorDataDto)
 	if err != nil {
 		fmt.Println("Error while unmarshaling sensor data:", err)
 		return
@@ -56,8 +67,10 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 		}
 
 		measurementData := models.Measurement{
-			SensorID: sensorDbObject.ID,
-			Value:    sensorData.Value,
+			SensorID:           sensorDbObject.ID,
+			Value:              sensorData.Value,
+			Role:               role,
+			MeasurementGroupID: measurementGroup.ID,
 		}
 
 		measurementDataDbObject := initPackage.Db.Create(&measurementData).Clauses(clause.Returning{})
@@ -65,6 +78,7 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 		if measurementDataDbObject.Error != nil {
 			wsutils.SendErrorResponse(connection, http.StatusNotFound)
 		}
+		measurements = append(measurements, measurementData)
 
 		webhooks, err := controllers.GetSubscribedWebhooksForSensor(sensorDbObject.ID)
 		if err != nil {
@@ -84,6 +98,27 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 		}
 
 		fmt.Println(measurementDataDbObject)
+	}
+
+	
+	ownerConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDBObject.ClerkUserID)
+	if isExisting {
+		fmt.Println("Owner connection found")
+
+		measurementResponse := dtos.MeasurementGroupDto{
+			MeasurementGroupID:   measurementGroup.ID,
+			CropPotID: 		  measurementGroup.CropPotID,
+			Measurements:         measurements,
+			HealthStatus: nil,
+		}
+
+		measurementResponseString, err := json.Marshal(measurementResponse)
+		if err != nil {
+			fmt.Printf("Failed to marshal alert: %v\n", err)
+		}
+
+		controllers.CreateMessage(*cropPotDBObject.ClerkUserID, string(measurementResponseString), "New measurement", wsTypes.MessageFound, wsTypes.UndiagnosedMeasurement)
+		wsutils.SendMessage(ownerConn, wsTypes.MessageFound, wsTypes.UndiagnosedMeasurement, measurementResponse)
 	}
 	wsutils.SendValidResponse(connection, nil)
 }
@@ -120,10 +155,6 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("sensorDbObject")
-	fmt.Println(sensorDbObject)
-	fmt.Println("err")
-	fmt.Println(err)
 
 	if sensorDbObject == nil {
 		fmt.Println("Sensor not found, adding a new one")
@@ -133,8 +164,6 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 		wsutils.SendMessage(connection, wsTypes.SensorAdded, "", alert)
 
 		sensorDbObject, addErr := controllers.AddSensor(potIDUint, sensorDto)
-		fmt.Println(addErr)
-		fmt.Println(sensorDbObject)
 		if addErr != nil {
 			fmt.Println("Error adding sensor:", *addErr)
 			wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
@@ -160,7 +189,6 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 
 	alert := wsTypes.Alert{}
 	sensorDriver, err := controllers.FindDriverBySensorId(sensorDbObject.ID)
-	fmt.Println(sensorDriver)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		fmt.Println("Error while finding driver: ", err)
 		return
@@ -173,14 +201,10 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 	}
 
 	alert.Message = "Please provide a driver for the sensor."
-	fmt.Println("cropPotDbObject.ClerkUserID")
-	fmt.Println(*cropPotDbObject.ClerkUserID)
-	controllers.CreateMessage(*cropPotDbObject.ClerkUserID, "Please provide a driver for the sensor.", "Driver required")
+	controllers.CreateMessage(*cropPotDbObject.ClerkUserID, "Please provide a driver for the sensor.", "Driver required", wsTypes.DriverRequired, "")
 	wsutils.SendMessage(connection, wsTypes.DriverRequired, "", alert)
 
 	userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDbObject.ClerkUserID)
-	fmt.Println(isExisting)
-	fmt.Println(userConn)
 	if isExisting {
 		wsutils.SendMessage(userConn, wsTypes.DriverRequired, "", alert)
 	}
@@ -213,10 +237,6 @@ func (h *Handler) HandleDetachSensor(data json.RawMessage, connection *wsTypes.C
 		wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("sensorDbObject")
-	fmt.Println(sensorDbObject)
-	fmt.Println("err")
-	fmt.Println(err)
 
 	if sensorDbObject == nil {
 		fmt.Println("Sensor not found or uninitialized")
@@ -232,28 +252,8 @@ func (h *Handler) HandleDetachSensor(data json.RawMessage, connection *wsTypes.C
 	alert := wsTypes.Alert{}
 
 	userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDbObject.ClerkUserID)
-	fmt.Println(isExisting)
-	fmt.Println(userConn)
 	if isExisting {
 		wsutils.SendMessage(userConn, wsTypes.DriverRequired, "", alert)
 	}
 
-}
-
-
-func (h *Handler) GatherMlData(data json.RawMessage, connection *wsTypes.Connection) {
-    var mlDataDto wsDtos.MlDataDto
-    err := json.Unmarshal(data, &mlDataDto)
-    if err != nil {
-        fmt.Println("Error while unmarshaling sensor data:", err)
-        return
-    }
-
-    // Store the data in Prometheus
-    mlData.With(prometheus.Labels{"metric_name": "ph"}).Set(float64(mlDataDto.Ph))
-    mlData.With(prometheus.Labels{"metric_name": "temperature"}).Set(float64(mlDataDto.Temperature))
-    mlData.With(prometheus.Labels{"metric_name": "soilMoisture"}).Set(float64(mlDataDto.SoilMoisture))
-
-    // Optionally, send a response back to the client
-	wsutils.SendValidResponse(connection, nil)
 }

@@ -7,7 +7,8 @@ import (
 type Type string
 
 const (
-	TempType Type = "temperature"
+	SoilTempType Type = "soil_temp"
+	SoilMoistureType Type = "soil_moisture"
 )
 
 type Sensor struct {

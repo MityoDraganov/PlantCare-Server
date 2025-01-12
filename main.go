@@ -2,7 +2,6 @@ package main
 
 import (
 	"PlantCare/utils/firebaseUtil"
-	"PlantCare/websocket/eventHandlers"
 	"fmt"
 	"log"
 	"net/http"
@@ -24,19 +23,31 @@ import (
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 	"github.com/joho/godotenv"
+
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 )
 
-
-
 func InitDB() *gorm.DB {
-	dsn := "sqlserver://server:P@ssw0rd123!@localhost:1433?database=Plant_Care"
-	db, err := gorm.Open(sqlserver.Open(dsn), &gorm.Config{})
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Error loading .env file")
+	}
+
+	DBConnString := os.Getenv("DB_CONN_STRING")
+	db, err := gorm.Open(sqlserver.Open(DBConnString), &gorm.Config{})
 	if err != nil {
 		log.Fatal("failed to connect database:", err)
 	}
 
-
 	return db
+}
+
+func initInfluxDB() influxdb2.Client{
+	token := os.Getenv("INFLUXDB_TOKEN")
+	url := "http://localhost:8086"
+	client := influxdb2.NewClient(url, token)
+
+	return client
 }
 
 func main() {
@@ -57,19 +68,19 @@ func main() {
 		log.Fatalf("Failed to initialize Firebase app: %v", err)
 	}
 
-	eventHandlers.InitPrometheus()
-
 	authMiddleware := clerkhttp.RequireHeaderAuthorization()
 	api.Use(authMiddleware)
 
 	db := InitDB()
-	initPackage.SetDatabase(db)
+	influxClinet := initInfluxDB()
+	initPackage.SetDatabases(db, &influxClinet)
 
 	err = db.AutoMigrate(
 		&models.User{},
 		&models.CropPot{},
 		&models.Sensor{},
 		&models.Driver{},
+		&models.MeasurementGroup{},
 		&models.Measurement{},
 		&models.Condition{},
 		&models.Control{},
@@ -89,7 +100,7 @@ func main() {
 		log.Fatal("failed to set crop pots to offline on startup:", err)
 	}
 
-	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister).Methods("POST");
+	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister).Methods("POST")
 
 	// PUBLIC ROUTES
 	//test route

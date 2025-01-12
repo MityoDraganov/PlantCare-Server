@@ -48,7 +48,7 @@ func RequestAllSensorData() {
 }
 
 func CollectMlData() {
-	log.Println("Requesting all sensor data from crop pots...")
+	log.Println("Requesting DATA from ML COLLECTION pots...")
 
 	// Get all active crop pot connections
 	connections := connectionManager.ConnManager.GetConnectionsByRole(wsTypes.MLRole)

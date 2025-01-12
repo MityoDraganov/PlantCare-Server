@@ -30,6 +30,8 @@ const (
 	AsyncPromise Event = "asyncPromise"
 	HandleSensorDataRequest Event = "HandleSensorDataRequest"
 	FirmwareUpdate Event = "FirmwareUpdate"
+
+	UndiagnosedMeasurement Event = "UndiagnosedMeasurement"
 )
 
 type StatusResponse string
@@ -78,3 +80,4 @@ const (
 type Alert struct {
 	Message interface{}
 }
+

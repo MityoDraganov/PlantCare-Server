@@ -1,14 +1,16 @@
 package initPackage
 
 import (
-	"github.com/go-playground/validator/v10"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"gorm.io/gorm"
 )
 
 var Db *gorm.DB
-var validate *validator.Validate
 
-func SetDatabase(database *gorm.DB) {
+var InfluxDB *influxdb2.Client
+
+func SetDatabases(database *gorm.DB, influxClient *influxdb2.Client) {
 	Db = database
-	validate = validator.New()
+
+	InfluxDB = influxClient
 }
