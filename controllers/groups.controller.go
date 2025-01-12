@@ -7,6 +7,7 @@ import (
 	"PlantCare/utils"
 	"encoding/json"
 	"net/http"
+	"strconv"
 )
 
 
@@ -18,7 +19,11 @@ func CreateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cropPotDbObject, err := FindCropPotById(string(groupDto.CropPotID))
+	cropPotDbObject, err := FindCropPotById(strconv.Itoa(int(groupDto.CropPotID)))
+	if err != nil {
+		utils.JsonError(w, err.Error(), http.StatusNotFound)
+		return
+	}
 
 	group := models.Group{
 		CropPots: []models.CropPot{*cropPotDbObject},

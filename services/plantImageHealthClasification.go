@@ -5,20 +5,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"PlantCare/types"
 	"image"
 	"image/jpeg"
 	"mime/multipart"
+
 	"github.com/disintegration/imaging"
 )
 
-// Struct to hold structured data for the model
-type ModelOutput struct {
-	Status            string `json:"status"`
-	PercentageHealthy uint8  `json:"percentageHealthy"`
-}
-
 // Predict makes a prediction based on the provided input data and image file.
-func PredictPlantHealth(image multipart.File) (*string, error) {
+func PredictPlantHealth(image multipart.File) (*types.ModelOutput, error) {
 
 	// Read and encode the image file
     processedImage, err := preProcessImage(image)
@@ -41,9 +37,6 @@ func PredictPlantHealth(image multipart.File) (*string, error) {
 	}
 
 	promt := "Diagnose the plant. Retrieve the output in a json format {percentageHealthy: 0 to 100, plantName: string, certentyPercantage: 0 to 100, isPlantRecognised: boolean}" + string(inputJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate content: %w", err)
-	}
 
 	resp, err := GeneratePrediction(promt, nil)
 	if err != nil {
@@ -54,7 +47,13 @@ func PredictPlantHealth(image multipart.File) (*string, error) {
 		return nil, fmt.Errorf("no response received from model")
 	}
 
-	return resp, nil
+	var modelOutput types.ModelOutput
+	err = json.Unmarshal([]byte(*resp), &modelOutput)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal model output: %w", err)
+	}
+
+	return &modelOutput, nil
 }
 
 // readAndEncodeImage reads an image from a multipart.File and encodes it to a base64 string.

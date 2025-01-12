@@ -112,8 +112,12 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
 		DownloadUrl: firmwareUrl,
 	}
 
+	notification := wsDtos.NotificationDto{
+		Data: message,
+	}
+
 	fmt.Println("Sending firmware message")
-	if err := wsutils.SendMessage(potConn, "", wsTypes.FirmwareUpdate, message); err != nil {
+	if err := wsutils.SendMessage(potConn, "", wsTypes.FirmwareUpdate, notification); err != nil {
 		fmt.Println("Failed to send firmware update message:", err)
 		return err
 	}

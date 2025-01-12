@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -144,16 +145,29 @@ func UserWsMiddlewear(w http.ResponseWriter, r *http.Request) {
 		wsutils.SendErrorResponse(&connection, http.StatusInternalServerError)
 
 	}
-	for _, message := range messages {
-		messageDto := wsDtos.NotificationDto{
-			Title:     utils.CoalesceString(message.Title),
-			Data:      message.Data,
-			IsRead:    message.IsRead,
-			Timestamp: message.CreatedAt,
+    for _, message := range messages {
+        // Ensure consistent formatting with real-time messages
+		var parsedData map[string]interface{}
+		if err := json.Unmarshal([]byte(message.Data), &parsedData); err != nil {
+			fmt.Println("Error parsing message data:", err)
+			continue
 		}
 
-		wsutils.SendMessage(&connection, message.StatusResponse, message.Event, messageDto)
-	}
+		fmt.Println("data ----", message.Data)
+		fmt.Println("parsedData ----", parsedData)
+
+  
+        messageDto := wsDtos.NotificationDto{
+            Title:     utils.CoalesceString(message.Title),
+            Data:      parsedData,
+            IsRead:    message.IsRead,
+            Timestamp: message.CreatedAt,
+        }
+
+		fmt.Println(messageDto)
+
+        wsutils.SendMessage(&connection, message.StatusResponse, message.Event, messageDto)
+    }
 	go HandleMessages(&connection, nil)
 	go wsutils.SendMessages(&connection)
 
@@ -236,7 +250,13 @@ func PotMiddleware(w http.ResponseWriter, r *http.Request) {
 	ownerConnection, exists := connectionManager.ConnManager.GetConnectionByOwner(*cropPotDbObject.ClerkUserID)
 	if exists {
 
-		wsutils.SendMessage(ownerConnection, "", wsTypes.UpdatedPot, controllers.ToCropPotResponseDTO(*cropPotDbObject))
+		messageDto := wsDtos.NotificationDto{
+			Title:     utils.StringPtr("Updated Pot"),
+			Data:      controllers.ToCropPotResponseDTO(*cropPotDbObject),
+			IsRead:    false,
+			Timestamp: cropPotDbObject.UpdatedAt,
+		}
+		wsutils.SendMessage(ownerConnection, "", wsTypes.UpdatedPot, messageDto)
 	}
 
 	// Start handling messages
@@ -320,4 +340,22 @@ func (s *InMemoryJWKStore) GetJWK() *clerk.JSONWebKey {
 // SetJWK stores the JSON Web Key.
 func (s *InMemoryJWKStore) SetJWK(jwk *clerk.JSONWebKey) {
 	s.jwk = jwk
+}
+
+
+func normalizeMessageData(data interface{}) interface{} {
+    // Check if data is a map with a "data" key
+    if mapData, ok := data.(map[string]interface{}); ok {
+        if innerData, exists := mapData["data"]; exists {
+            // Merge "data" content into the parent map if it's a map
+            if innerMap, ok := innerData.(map[string]interface{}); ok {
+                for k, v := range innerMap {
+                    mapData[k] = v
+                }
+                delete(mapData, "data") // Remove the nested "data" key
+            }
+        }
+        return mapData
+    }
+    return data // Return as-is if not a map
 }

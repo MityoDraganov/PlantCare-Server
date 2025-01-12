@@ -14,7 +14,7 @@ func StartCronJobs() {
 	c := cron.New()
 
 	// Add a function to check for new alerts every minute
-	_, err := c.AddFunc("@every 12h", func() {
+	_, err := c.AddFunc("@every 1h", func() {
 
 		connections := connectionManager.ConnManager.GetConnectionsByRole(wsTypes.UserRole)
 

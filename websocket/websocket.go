@@ -6,6 +6,7 @@ import (
 	"PlantCare/models"
 	"PlantCare/websocket/connectionManager"
 	"PlantCare/websocket/eventHandlers"
+	"PlantCare/websocket/wsDtos"
 	"PlantCare/websocket/wsTypes"
 	"encoding/json"
 	"fmt"
@@ -25,9 +26,6 @@ func HandleMessages(connection *wsTypes.Connection, cropPotDbObject *models.Crop
 
 	rateLimiter := wsutils.NewRateLimiter(1000, time.Hour) // Initialize RateLimiter with a hardcoded limit
 
-
-
-
 	for {
 		_, msg, err := connection.Conn.ReadMessage()
 		if err != nil {
@@ -40,8 +38,11 @@ func HandleMessages(connection *wsTypes.Connection, cropPotDbObject *models.Crop
 				}
 				ownerConnection, exists := connectionManager.ConnManager.GetConnectionByOwner(*cropPotDbObject.ClerkUserID)
 				if exists {
-			
-					wsutils.SendMessage(ownerConnection, "", wsTypes.UpdatedPot, controllers.ToCropPotResponseDTO(*cropPotDbObject))
+
+					wsutils.SendMessage(ownerConnection, "", wsTypes.UpdatedPot, wsDtos.NotificationDto{
+
+						Data: controllers.ToCropPotResponseDTO(*cropPotDbObject),
+					})
 				}
 			}
 			break
@@ -56,13 +57,13 @@ func HandleMessages(connection *wsTypes.Connection, cropPotDbObject *models.Crop
 // Process the received message
 func ProcessMessage(msg []byte, connection *wsTypes.Connection, rateLimiter *wsutils.RateLimiter) {
 	var message wsTypes.Message
-	
+
 	err := json.Unmarshal(msg, &message)
 	if err != nil {
 		fmt.Println("Error while unmarshaling message:", err)
 		return
 	}
-	
+
 	if message.Event == nil {
 		fmt.Println("Received message with nil event")
 		return

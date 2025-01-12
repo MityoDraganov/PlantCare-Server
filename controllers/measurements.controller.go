@@ -29,7 +29,12 @@ func DiagnoseMeasuringGroup(w http.ResponseWriter, r *http.Request) {
 	// Define destination path for Firebase (e.g., "drivers/{filename}")
 	destinationPath := "plantPictures/diagnosisPictures/" + header.Filename
 
-	plantHealth, err := services.PredictPlantHealth(file)
+	modelOutput, err := services.PredictPlantHealth(file)
+
+	if err != nil {
+		utils.JsonError(w, "Failed to predict plant health", http.StatusInternalServerError)
+		return
+	}
 
 	// Upload file to Firebase
 	imageUrl, err := firebaseUtil.UploadFile(file, destinationPath)
@@ -43,10 +48,10 @@ func DiagnoseMeasuringGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := struct {
-		PlantHealth *string `json:"plantHealth"`
+		PlantHealth *uint8 `json:"percentageHealthy"`
 		ImageUrl string `json:"imageUrl"`
 	}{
-		PlantHealth: plantHealth,
+		PlantHealth: &modelOutput.PercentageHealthy,
 		ImageUrl: imageUrl,
 	}
 

@@ -47,19 +47,19 @@ func SeedDatabase(db *gorm.DB) error {
 	// Seed CropPots
 	cropPots := []models.CropPot{
 		{
-			Token:       "pot_1",
-			Alias:       "Herb Garden",
-			IsArchived:  false,
-			ClerkUserID: &users[0].ClerkID,
-			Status: models.StatusOffline,
+			Token:              "pot_1",
+			Alias:              "Herb Garden",
+			IsArchived:         false,
+			ClerkUserID:        &users[0].ClerkID,
+			Status:             models.StatusOffline,
 			MeasuremntInterval: time.Hour,
 		},
 		{
-			Token:       "pot_2",
-			Alias:       "Vegetable Bed",
-			IsArchived:  false,
-			ClerkUserID: &users[0].ClerkID,
-			Status: models.StatusOffline,
+			Token:              "pot_2",
+			Alias:              "Vegetable Bed",
+			IsArchived:         false,
+			ClerkUserID:        &users[0].ClerkID,
+			Status:             models.StatusOffline,
 			MeasuremntInterval: time.Hour,
 		},
 	}
@@ -95,25 +95,18 @@ func SeedDatabase(db *gorm.DB) error {
 	// Seed Sensors
 	sensors := []models.Sensor{
 		{
-			CropPotID:          cropPots[0].ID,
-			SerialNumber:       "sensor_1",
-			Alias:              stringPtr("Temperature Sensor"),
-			IsOfficial:         true,
-			Type:               models.TempType,
+			CropPotID:    cropPots[0].ID,
+			SerialNumber: "sensor_1",
+			Alias:        stringPtr("Temperature Sensor"),
+			IsOfficial:   true,
+			Type:         models.SoilTempType,
 		},
 		{
-			CropPotID:          cropPots[0].ID,
-			SerialNumber:       "sensor_2",
-			Alias:              stringPtr("Moisture Sensor"),
-			IsOfficial:         true,
-			Type:               models.TempType,
-		},
-		{
-			CropPotID:          cropPots[1].ID,
-			SerialNumber:       "sensor_3",
-			Alias:              stringPtr("Light Sensor"),
-			IsOfficial:         true,
-			Type:               models.TempType,
+			CropPotID:    cropPots[0].ID,
+			SerialNumber: "sensor_2",
+			Alias:        stringPtr("Moisture Sensor"),
+			IsOfficial:   true,
+			Type:         models.SoilMoistureType,
 		},
 	}
 	if err := db.Create(&sensors).Error; err != nil {
@@ -207,6 +200,10 @@ func SeedDatabase(db *gorm.DB) error {
 	return nil
 }
 
+func stringPtr(s string) *string {
+	return &s
+}
+
 func main() {
 	db := InitDBSeed()
 
@@ -215,8 +212,4 @@ func main() {
 	}
 
 	log.Println("Database seeded successfully!")
-}
-
-func stringPtr(s string) *string {
-	return &s
 }

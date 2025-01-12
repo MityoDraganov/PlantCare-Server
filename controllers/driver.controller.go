@@ -218,7 +218,8 @@ func ToDriverDTO(driver models.Driver, IsUploader bool) dtos.DriverDto {
 	// Create a new HTTP request with Clerk API Key for authorization
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		fmt.Errorf("failed to create request: %w", err)
+		fmt.Printf("failed to create request: %v\n", err)
+		return dtos.DriverDto{}
 	}
 	req.Header.Set("Authorization", "Bearer "+os.Getenv("CLERK_API_KEY"))
 
@@ -226,19 +227,20 @@ func ToDriverDTO(driver models.Driver, IsUploader bool) dtos.DriverDto {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Errorf("failed to send request: %w", err)
+		fmt.Printf("failed to send request: %v\n", err)
+		return dtos.DriverDto{}
 	}
 	defer resp.Body.Close()
 
-	// Check for a successful response
 	if resp.StatusCode != http.StatusOK {
-		fmt.Errorf("received non-200 response code: %d", resp.StatusCode)
+		fmt.Printf("received non-200 response code: %d\n", resp.StatusCode)
+		return dtos.DriverDto{}
 	}
 
-	// Parse the JSON response into our struct
 	var user ClerkUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		fmt.Errorf("failed to parse response: %w", err)
+		fmt.Printf("failed to parse response: %v\n", err)
+		return dtos.DriverDto{}
 	}
 
 	var primaryEmail string

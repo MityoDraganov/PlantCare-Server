@@ -23,6 +23,7 @@ func DropAllTables(db *gorm.DB) error {
 		&models.CropPot{},
 		&models.Sensor{},
 		&models.Driver{},
+		&models.MeasurementGroup{},
 		&models.Measurement{},
 		&models.Condition{},
 		&models.Control{},
@@ -30,8 +31,8 @@ func DropAllTables(db *gorm.DB) error {
 		&models.Update{},
 		&models.ActivePeriod{},
 		&models.Message{},
-		&models.PinnedCard{},
 		&models.Canvas{},
+		&models.PinnedCard{},
 	}
 
 	for _, model := range modelsToDrop {

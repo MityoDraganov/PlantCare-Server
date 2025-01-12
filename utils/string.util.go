@@ -13,6 +13,9 @@ func CoalesceString(s *string) *string {
 	return s
 }
 
+func StringPtr(s string) *string {
+	return &s
+}
 
 func DurationToTimeString(d time.Duration) string {
 	hours := int(d / time.Hour)

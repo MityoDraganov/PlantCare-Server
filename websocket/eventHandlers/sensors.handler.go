@@ -8,6 +8,7 @@ import (
 	"PlantCare/utils"
 	"net/http"
 	"strconv"
+	"time"
 
 	"PlantCare/websocket/connectionManager"
 	"PlantCare/websocket/wsDtos"
@@ -16,6 +17,7 @@ import (
 	"fmt"
 
 	"encoding/json"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -116,9 +118,22 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 		if err != nil {
 			fmt.Printf("Failed to marshal alert: %v\n", err)
 		}
+		
+        // messageDto := wsDtos.NotificationDto{
+        //     Title:     utils."New measurement",
+        //     Data:      measurementResponse,
+        //     IsRead:    false,
+        //     Timestamp: time.Now(),
+        // }
 
 		controllers.CreateMessage(*cropPotDBObject.ClerkUserID, string(measurementResponseString), "New measurement", wsTypes.MessageFound, wsTypes.UndiagnosedMeasurement)
-		wsutils.SendMessage(ownerConn, wsTypes.MessageFound, wsTypes.UndiagnosedMeasurement, measurementResponse)
+		notification := wsDtos.NotificationDto{
+			Title:     utils.StringPtr("New measurement"),
+			Data:      measurementResponse,
+			IsRead:    false,
+			Timestamp: time.Now(),
+		}
+		wsutils.SendMessage(ownerConn, wsTypes.MessageFound, wsTypes.UndiagnosedMeasurement, notification)
 	}
 	wsutils.SendValidResponse(connection, nil)
 }
@@ -158,8 +173,11 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 
 	if sensorDbObject == nil {
 		fmt.Println("Sensor not found, adding a new one")
-		alert := wsTypes.Alert{
-			Message: "Sensor not found, adding a new one",
+		alert := wsDtos.NotificationDto{
+			Title:     utils.StringPtr("Sensor not found, adding a new one"),
+			Data:      nil,
+			IsRead:    false,
+			Timestamp: time.Now(),
 		}
 		wsutils.SendMessage(connection, wsTypes.SensorAdded, "", alert)
 
@@ -167,11 +185,17 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 		if addErr != nil {
 			fmt.Println("Error adding sensor:", *addErr)
 			wsutils.SendErrorResponse(connection, http.StatusInternalServerError)
-			return
+		alert = wsDtos.NotificationDto{
+			Title:     utils.StringPtr("Sensor added successfully: " + sensorDbObject.SerialNumber),
+			Data:      nil,
+			IsRead:    false,
+			Timestamp: time.Now(),
 		}
-
-		alert = wsTypes.Alert{
-			Message: "Sensor added successfully: " + sensorDbObject.SerialNumber,
+		alert = wsDtos.NotificationDto{
+			Title:     utils.StringPtr("Sensor added successfully"),
+			Data:      sensorDbObject.SerialNumber,
+			IsRead:    false,
+			Timestamp: time.Now(),
 		}
 		wsutils.SendMessage(connection, wsTypes.SensorAdded, "", alert)
 	}
@@ -187,7 +211,7 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 		return
 	}
 
-	alert := wsTypes.Alert{}
+	alert = wsDtos.NotificationDto{}
 	sensorDriver, err := controllers.FindDriverBySensorId(sensorDbObject.ID)
 	if err != nil && err != gorm.ErrRecordNotFound {
 		fmt.Println("Error while finding driver: ", err)
@@ -195,12 +219,12 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 	}
 
 	if sensorDriver != nil {
-		alert.Message = "Sensor connected successfully."
+		alert.Title = utils.StringPtr("Sensor connected successfully.")
 		wsutils.SendMessage(connection, wsTypes.SensorConnected, "", alert)
 		return
 	}
 
-	alert.Message = "Please provide a driver for the sensor."
+	alert.Title = utils.StringPtr("Please provide a driver for the sensor.")
 	controllers.CreateMessage(*cropPotDbObject.ClerkUserID, "Please provide a driver for the sensor.", "Driver required", wsTypes.DriverRequired, "")
 	wsutils.SendMessage(connection, wsTypes.DriverRequired, "", alert)
 
@@ -209,7 +233,7 @@ func (h *Handler) HandleAttachSensor(data json.RawMessage, connection *wsTypes.C
 		wsutils.SendMessage(userConn, wsTypes.DriverRequired, "", alert)
 	}
 
-}
+}}
 
 func (h *Handler) HandleDetachSensor(data json.RawMessage, connection *wsTypes.Connection) {
 	potIDStr, ok := connection.Context.Value(wsTypes.CropPotIDKey).(string)
@@ -249,7 +273,7 @@ func (h *Handler) HandleDetachSensor(data json.RawMessage, connection *wsTypes.C
 		return
 	}
 
-	alert := wsTypes.Alert{}
+	alert := wsDtos.NotificationDto{}
 
 	userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(*cropPotDbObject.ClerkUserID)
 	if isExisting {
