@@ -21,3 +21,7 @@ type MeasurementGroupDto struct {
 	HealthStatus      *float32		`json:"healthStatus"`
 }
 
+type DiagnoseMeasuringGroupDto struct {
+	MeasurementGroupID uint   `json:"measurementGroupId"`
+	Picture            string `json:"picture"`
+}

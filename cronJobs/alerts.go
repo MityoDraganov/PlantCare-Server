@@ -16,7 +16,17 @@ import (
 func CheckAndSendAlerts(connection wsTypes.Connection) {
 	log.Println("Checking for new alerts...")
 	userID := connection.Context.Value(wsTypes.CropPotIDKey).(string)
-	forecast, err := services.GetIndoorForecast("Sliven", userID)
+
+
+	cropPots, err := controllers.FindPotsByUserId(userID)
+	if err != nil {
+		fmt.Println("Failed to find crop pots: %v", err)
+		return;
+	}
+
+	historicalIndoorsWeather := controllers.GetMeasurementsBySensorId(cropPots[0].Sensors[0].ID)
+
+	forecast, err := services.GetIndoorForecast("Sliven", historicalIndoorsWeather)
 	if err != nil {
 		fmt.Println(err.Error())
 	}

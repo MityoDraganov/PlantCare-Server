@@ -103,13 +103,14 @@ func main() {
 	r.HandleFunc("/users/clerk/register", controllers.ClerkUserRegister).Methods("POST")
 
 	// PUBLIC ROUTES
-	//test route
 	r.HandleFunc("/",
 		func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"message": "Server is running"}`))
 		}).Methods("GET")
+
+
 	// PROTECTED ROUTES
 
 	// --INBOX--
@@ -125,12 +126,18 @@ func main() {
 	pots.HandleFunc("/{potId}", controllers.UpdateCropPot).Methods("PUT")
 	pots.HandleFunc("/{potId}", controllers.RemoveCropPot).Methods("DELETE")
 
+	// --MEASUREMENTS--
+	measurements := api.PathPrefix("/measurements").Subrouter()
+	//measurements.Use(middlewears.PotMiddleware)
+	measurements.HandleFunc("/diagnoseMeasurement/{measurementGroupId}", controllers.DiagnoseMeasuringGroup).Methods("POST")
+
 	// --CONTROLS--
 	controls := api.PathPrefix("/controls").Subrouter()
 	controls.HandleFunc("", controllers.UpdateControls).Methods("PUT")
 
 	// --SENSORS--
 	sensors := api.PathPrefix("/sensors").Subrouter()
+	sensors.Use(middlewears.PotMiddleware)
 	sensors.HandleFunc("/{sensorId}", controllers.UpdateSensor).Methods("PUT")
 	sensors.HandleFunc("", controllers.UpdateSensor).Methods("PUT")
 

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"PlantCare/controllers"
 	"PlantCare/dtos"
 	"encoding/json"
 	"fmt"
@@ -71,7 +70,7 @@ func getWeatherForecast(apiKey string, location string) (*dtos.ForecastDTO, erro
 	return &forecast, nil
 }
 
-func GetIndoorForecast(location string, userId string) (*string, error) {
+func GetIndoorForecast(location string, historicalIndoorsWeather dtos.SensorMeasurementsSummary) (*string, error) {
 	err := godotenv.Load()
 	if err != nil {
 		fmt.Println("Error loading .env file")
@@ -90,12 +89,6 @@ func GetIndoorForecast(location string, userId string) (*string, error) {
 		return nil, err
 	}
 
-	cropPots, err := controllers.FindPotsByUserId(userId)
-	if err != nil {
-		return nil, err
-	}
-
-	historicalIndoorsWeather := controllers.GetMeasurementsBySensorId(cropPots[0].Sensors[0].ID)
 
 	// Call Predict with the correct structure
 	indoorForecast, err := PredictForecast(dtos.GeminiRequest{
