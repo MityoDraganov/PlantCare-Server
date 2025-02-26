@@ -1,10 +1,12 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+)
 
 type MeasurementGroup struct {
 	gorm.Model
-	Measurements      []Measurement `gorm:"foreignKey:MeasurementGroupID"`
-	CropPotID         uint 		`json:"cropPotId"`
-	HealthStatus      *float32		`json:"healthStatus"`
+	Measurements    []Measurement      `gorm:"foreignKey:MeasurementGroupID"`
+	CropPotID       uint               `json:"cropPotId"`
+	ModelOutput 	*ModelOutput `json:"modelOutput"`
 }

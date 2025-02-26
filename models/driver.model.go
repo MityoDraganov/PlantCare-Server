@@ -8,6 +8,7 @@ type Driver struct {
 	DownloadUrl string `json:"downloadUrl"`
 
 	Sensors []Sensor `gorm:"foreignKey:DriverID"`
+	Controls []Control `gorm:"foreignKey:DriverID"`
 
 	MarketplaceBannerUrl *string
 	Alias                string `json:"alias"`

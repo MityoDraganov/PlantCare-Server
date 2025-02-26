@@ -13,7 +13,7 @@ type ControlDto struct {
 
 	Condition *ConditionDto `json:"condition"`
 
-	ActivePeriod ActivePeriod `json:"activePeriod"`
+	//ActivePeriod ActivePeriod `json:"activePeriod"`
 }
 
 type ControlRequestDto struct {
@@ -23,6 +23,6 @@ type ControlRequestDto struct {
 
 	Condition ConditionRequestDto `json:"condition"`
 
-	ActivePeriod ActivePeriod `json:"activePeriod"`
+	//ActivePeriod ActivePeriod `json:"activePeriod"`
 }
 

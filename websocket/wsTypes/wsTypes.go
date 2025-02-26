@@ -19,7 +19,7 @@ const (
 type Event string
 
 const (
-	HandleForecastAlert Event = "forecastAlert"
+	HandleForecastAlert Event = "ForecastNotification"
 	HandleAttachSensor  Event = "handleAttachSensor"
 	HandleDetachSensor  Event = "handleDetachSensor"
 	UpdatedPot          Event = "updatedPot"

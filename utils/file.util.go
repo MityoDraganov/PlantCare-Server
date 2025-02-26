@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"PlantCare/types"
 	"io"
 	"io/fs"
 	"net/http"
@@ -192,16 +193,52 @@ func FindClassName(filePath string) (string, error) {
 }
 
 
+// WriteConfigJSON creates a JSON file in the desired structure
 func WriteConfigJSON(configPath string, sensorDriverConfig map[string]string) error {
+	// Create the output file
 	configFile, err := os.Create(configPath)
 	if err != nil {
 		return err
 	}
 	defer configFile.Close()
 
+	// Construct the config object
+	config := types.Config{}
+
+	// Sample serial numbers (you may adjust based on your logic)
+	for serialNumber, className := range sensorDriverConfig {
+		sensor := types.Sensor{
+			SerialNumber: serialNumber,
+			Type:         className,
+		}
+		// Add sensor to the config
+		config.Sensors = append(config.Sensors, sensor)
+	}
+
+	// Adding a control entry, as a placeholder (you can populate it dynamically as needed)
+	control := types.Control{
+		SerialNumber: "",
+		Type:         "WaterPump",
+		DependantSensor: struct {
+			SerialNumber string `json:"serialNumber"`
+			MinValue     int    `json:"minValue"`
+			MaxValue     int    `json:"maxValue"`
+		}{
+			SerialNumber: "YKTMgxAKCwE5jNXo", // Example, adjust based on your logic
+			MinValue:     0,
+			MaxValue:     50,
+		},
+	}
+
+	// Add control to the config
+	config.Controls = append(config.Controls, control)
+
+	// Create a JSON encoder with indentation
 	encoder := json.NewEncoder(configFile)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(sensorDriverConfig); err != nil {
+
+	// Write the config structure to the JSON file
+	if err := encoder.Encode(config); err != nil {
 		return err
 	}
 	return nil

@@ -1,18 +1,31 @@
 package controllers
 
 import (
+	"PlantCare/initPackage"
+	"PlantCare/models"
 	"PlantCare/services"
 	"PlantCare/utils"
 	"PlantCare/utils/firebaseUtil"
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 func DiagnoseMeasuringGroup(w http.ResponseWriter, r *http.Request) {
 
+	params := mux.Vars(r)
+	measurementGroupId := params["measurementGroupId"]
+
+	measuringGroupDbObject, err := findMeasuringGroupById(measurementGroupId)
+	if err != nil {
+		utils.JsonError(w, "Failed to find measuring group", http.StatusNotFound)
+		return
+	}
+
 	// Parse the multipart form
-	err := r.ParseMultipartForm(10 << 20) // 10MB max file size
+	err = r.ParseMultipartForm(10 << 20) // 10MB max file size
 	if err != nil {
 		http.Error(w, "Error parsing form data: "+err.Error(), http.StatusBadRequest)
 		return
@@ -30,11 +43,22 @@ func DiagnoseMeasuringGroup(w http.ResponseWriter, r *http.Request) {
 	destinationPath := "plantPictures/diagnosisPictures/" + header.Filename
 
 	modelOutput, err := services.PredictPlantHealth(file)
-
 	if err != nil {
 		utils.JsonError(w, "Failed to predict plant health", http.StatusInternalServerError)
 		return
 	}
+
+	modelOutputDbObject := models.ModelOutput{
+		PercentageHealthy: modelOutput.PercentageHealthy,
+		PlantName: 	   modelOutput.PlantName,
+		CertentyPercantage: modelOutput.CertentyPercantage,
+		IsPlantRecognised: modelOutput.IsPlantRecognised,
+	}
+	
+
+	// Update the model output in the database
+	measuringGroupDbObject.ModelOutput = &modelOutputDbObject
+	initPackage.Db.Save(&measuringGroupDbObject)
 
 	// Upload file to Firebase
 	imageUrl, err := firebaseUtil.UploadFile(file, destinationPath)
@@ -49,10 +73,10 @@ func DiagnoseMeasuringGroup(w http.ResponseWriter, r *http.Request) {
 
 	response := struct {
 		PlantHealth *uint8 `json:"percentageHealthy"`
-		ImageUrl string `json:"imageUrl"`
+		ImageUrl    string `json:"imageUrl"`
 	}{
 		PlantHealth: &modelOutput.PercentageHealthy,
-		ImageUrl: imageUrl,
+		ImageUrl:    imageUrl,
 	}
 
 	// Respond with the image URL
@@ -63,4 +87,14 @@ func DiagnoseMeasuringGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(responseBytes)
+}
+
+func findMeasuringGroupById(measuringGroupId string) (*models.MeasurementGroup, error) {
+	measuringGroup := &models.MeasurementGroup{}
+	result := initPackage.Db.First(&measuringGroup, measuringGroupId)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return measuringGroup, nil
+
 }

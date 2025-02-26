@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 )
 
 func UpdateControls(w http.ResponseWriter, r *http.Request) {
@@ -26,59 +25,6 @@ func UpdateControls(w http.ResponseWriter, r *http.Request) {
     }
 
     for _, controlDto := range controlsDto {
-        activePeriodUpdate, err := findActivePeriodById(controlDto.ActivePeriod.ID)
-        if err != nil {
-            tx.Rollback()
-            utils.JsonError(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
-
-        var startTime, endTime time.Duration
-        var validStart, validEnd bool
-
-        if controlDto.ActivePeriod.Start != "" {
-            t, err := time.Parse("15:04", controlDto.ActivePeriod.Start)
-            if err != nil {
-                tx.Rollback()
-                utils.JsonError(w, fmt.Sprintf("Invalid start time format: %s", err.Error()), http.StatusBadRequest)
-                return
-            }
-            startTime = time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute
-            validStart = true
-        }
-
-        if controlDto.ActivePeriod.End != "" {
-            t, err := time.Parse("15:04", controlDto.ActivePeriod.End)
-            if err != nil {
-                tx.Rollback()
-                utils.JsonError(w, fmt.Sprintf("Invalid end time format: %s", err.Error()), http.StatusBadRequest)
-                return
-            }
-            endTime = time.Duration(t.Hour())*time.Hour + time.Duration(t.Minute())*time.Minute
-            validEnd = true
-        }
-
-        if validStart {
-            activePeriodUpdate.Start = startTime
-        }
-
-        if validEnd {
-            activePeriodUpdate.End = endTime
-        }
-
-        if len(controlDto.ActivePeriod.Days) > 0 {
-            var daysBitmask uint8
-            for _, day := range controlDto.ActivePeriod.Days {
-                daysBitmask |= 1 << (day - 1)
-            }
-            activePeriodUpdate.Days = daysBitmask
-        }
-
-        if err := tx.Save(&activePeriodUpdate).Error; err != nil {
-            tx.Rollback()
-            utils.JsonError(w, err.Error(), http.StatusInternalServerError)
-            return
-        }
 
         var sensor *models.Sensor
         if controlDto.Condition.DependentSensor != nil {
@@ -171,15 +117,6 @@ func ToControlsDTO(input interface{}) []dtos.ControlDto {
 func mapControlToDTO(control models.Control) dtos.ControlDto {
 
 
-	startStr := utils.DurationToTimeString(control.ActivePeriod.Start)
-	endStr := utils.DurationToTimeString(control.ActivePeriod.End)
-
-	activePeriod := dtos.ActivePeriod{
-		ID:    control.ActivePeriod.ID,
-		Start: startStr,
-		End:   endStr,
-		Days:  utils.ParseBitmask(control.ActivePeriod.Days),
-	}
 
 	return dtos.ControlDto{
 		ID:           control.ID,
@@ -199,7 +136,7 @@ func mapControlToDTO(control models.Control) dtos.ControlDto {
 		// 		return nil
 		// 	}(),
 		// },
-		ActivePeriod: activePeriod,
+
 	}
 
 }

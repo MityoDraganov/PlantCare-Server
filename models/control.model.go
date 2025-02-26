@@ -12,8 +12,10 @@ type Control struct {
 	Description  *string
 	IsOfficial bool
 
+	DriverID    *uint    // Foreign key to reference the software driver
+	Driver      *Driver `gorm:"foreignKey:DriverID;references:ID"` // Many sensors to one driver
+
 	Updates    []Update
 
 	Condition *Condition
-	ActivePeriod ActivePeriod
 }

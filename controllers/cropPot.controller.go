@@ -233,7 +233,6 @@ func FindPotsByUserId(userId string) ([]models.CropPot, error) {
 		Preload("Sensors.Measurements").
 		Preload("Sensors.Driver").
 		Preload("Controls").
-		Preload("Controls.ActivePeriod").
 		Preload("Controls.Updates").
 		Preload("Controls.Condition").
 		Preload("Controls.Condition.DependentSensor").
