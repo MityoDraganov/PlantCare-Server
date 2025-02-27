@@ -16,6 +16,10 @@ type ControlDto struct {
 	//ActivePeriod ActivePeriod `json:"activePeriod"`
 }
 
+type AttachControlDto struct {
+	SerialNumber string
+}
+
 type ControlRequestDto struct {
 	ID uint `json:"id"`
 	Alias        string  `json:"alias"`

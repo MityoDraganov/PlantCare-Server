@@ -59,7 +59,6 @@ func SendMessages(connection *wsTypes.Connection) {
 	}
 }
 
-
 func SendMessage(connection *wsTypes.Connection, statusResponse wsTypes.StatusResponse, event wsTypes.Event, data interface{}) error {
     if statusResponse == "" && event == "" {
         return fmt.Errorf("at least one of statusResponse or event must be provided")
@@ -67,9 +66,13 @@ func SendMessage(connection *wsTypes.Connection, statusResponse wsTypes.StatusRe
 
     // Convert the data to a map if it's not already one
     var dataMap map[string]interface{}
+
+    // Check if the data is a valid map, else initialize it as an empty map
     switch v := data.(type) {
     case map[string]interface{}:
         dataMap = v
+    case nil:
+        dataMap = make(map[string]interface{}) // Initialize an empty map if data is nil
     default:
         dataBytes, err := json.Marshal(data)
         if err != nil {
@@ -103,6 +106,7 @@ func SendMessage(connection *wsTypes.Connection, statusResponse wsTypes.StatusRe
 
     return nil
 }
+
 
 
 

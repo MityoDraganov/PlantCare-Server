@@ -240,12 +240,18 @@ func ToSensorsDTO(input interface{}) []dtos.SensorDto {
 	}
 }
 
-func AttachedStateUpdater(sensor *models.Sensor, state bool) error {
-	// Toggle the IsAttached field
-	sensor.IsAttached = state
+func AttachedStateUpdater(entity interface{}, state bool) error {
+	switch v := entity.(type) {
+	case *models.Sensor:
+		v.IsAttached = state
+	case *models.Control:
+		v.IsAttached = state
+	default:
+		return errors.New("unsupported entity type")
+	}
 
 	// Update the database with the new state
-	if err := initPackage.Db.Save(sensor).Error; err != nil {
+	if err := initPackage.Db.Save(entity).Error; err != nil {
 		return err
 	}
 

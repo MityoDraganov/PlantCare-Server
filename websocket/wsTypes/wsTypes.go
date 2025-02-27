@@ -22,6 +22,9 @@ const (
 	HandleForecastAlert Event = "ForecastNotification"
 	HandleAttachSensor  Event = "handleAttachSensor"
 	HandleDetachSensor  Event = "handleDetachSensor"
+
+	
+
 	UpdatedPot          Event = "updatedPot"
 
 	NotificationAlert Event = "notificationAlert"
@@ -39,6 +42,11 @@ type StatusResponse string
 const (
 	SensorConnected StatusResponse = "sensorConnected"
 	SensorDetached  StatusResponse = "sensorDetached"
+
+	ControlConnected StatusResponse = "controlConnected"
+	ControlDetached  StatusResponse = "controlDetached"
+	ControlAdded    StatusResponse = "controlAdded"
+
 	SensorNotFound  StatusResponse = "sensorNotFound"
 	SensorAdded     StatusResponse = "sensorAdded"
 	DriverRequired  StatusResponse = "driverRequired"

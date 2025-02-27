@@ -137,7 +137,7 @@ func main() {
 
 	// --SENSORS--
 	sensors := api.PathPrefix("/sensors").Subrouter()
-	sensors.Use(middlewears.PotMiddleware)
+	//sensors.Use(middlewears.PotMiddleware)
 	sensors.HandleFunc("/{sensorId}", controllers.UpdateSensor).Methods("PUT")
 	sensors.HandleFunc("", controllers.UpdateSensor).Methods("PUT")
 

@@ -14,29 +14,38 @@ import (
 	"strings"
 )
 
-// DownloadFile downloads a file from the given URL and saves it to the specified filePath.
 func DownloadFile(url, filePath string) error {
 	// Perform the HTTP GET request to download the file
+	fmt.Println("Attempting to download file from URL:", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to initiate download: %v", err)
 	}
 	defer resp.Body.Close()
 
+	// Log the status code received
+	fmt.Printf("Received response: HTTP %d\n", resp.StatusCode)
+
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download file: received HTTP %d", resp.StatusCode)
+		// If the status is not OK (200), log the error
+		return fmt.Errorf("failed to download file: received HTTP %d, URL: %s", resp.StatusCode, url)
 	}
 
 	// Create the output file where the downloaded content will be saved
 	out, err := os.Create(filePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create file: %v", err)
 	}
 	defer out.Close()
 
 	// Copy the downloaded content to the output file
 	_, err = io.Copy(out, resp.Body)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to save file: %v", err)
+	}
+
+	fmt.Println("File downloaded successfully:", filePath)
+	return nil
 }
 
 // Unzip extracts a ZIP file located at src into the destination directory dest.
@@ -194,7 +203,7 @@ func FindClassName(filePath string) (string, error) {
 
 
 // WriteConfigJSON creates a JSON file in the desired structure
-func WriteConfigJSON(configPath string, sensorDriverConfig map[string]string) error {
+func WriteConfigJSON(configPath string, sensorDriverConfig map[string]string, controlDriverConfig map[string]string) error {
 	// Create the output file
 	configFile, err := os.Create(configPath)
 	if err != nil {
@@ -229,6 +238,25 @@ func WriteConfigJSON(configPath string, sensorDriverConfig map[string]string) er
 			MaxValue:     50,
 		},
 	}
+
+	for serialNumber, className := range controlDriverConfig {
+		control := types.Control{
+			SerialNumber: serialNumber,
+			Type:         className,
+			DependantSensor: struct {
+				SerialNumber string `json:"serialNumber"`
+				MinValue     int    `json:"minValue"`
+				MaxValue     int    `json:"maxValue"`
+			}{
+				SerialNumber: "YKTMgxAKCwE5jNXo", // Example, adjust based on your logic
+				MinValue:     0,
+				MaxValue:     50,
+			},
+		}
+		config.Controls = append(config.Controls, control)
+	}
+
+
 
 	// Add control to the config
 	config.Controls = append(config.Controls, control)
