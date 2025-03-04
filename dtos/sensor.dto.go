@@ -26,10 +26,10 @@ type AttachSensor struct {
 }
 
 type SensorUserRequestDto struct {
-	ID uint `json:"id"`
-	Alias               string  `json:"alias"`
-	Description         *string `json:"description"`
-	DriverUrl           string  `json:"driverUrl"`
+	ID          uint    `json:"id"`
+	Alias       string  `json:"alias"`
+	Description *string `json:"description"`
+	DriverUrl   string  `json:"driverUrl"`
 }
 
 type SensorMeasurementsSummary struct {

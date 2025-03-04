@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"PlantCare/types"
 	"PlantCare/utils/firebaseUtil"
 	"PlantCare/websocket/connectionManager"
 	"PlantCare/websocket/wsDtos"
@@ -17,15 +18,17 @@ import (
 )
 
 // main repo url
-const repoURL = "https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/production.zip"
+const repoURL = "https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/controls.zip"
 
-func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connection) error {
+func UploadMultipleDrivers(sensorDriverURLs map[string]string, driverConfig []types.DriverConfig , potConn *wsTypes.Connection) error {
 	driverZipFilePath := "./driver.zip"
 	repoZipFilePath := "./repo.zip"
-	driverExtractDir := "./extracted/repo/PlantCare-esp32-production/src/drivers"
+	driverExtractDir := "./extracted/repo/PlantCare-esp32-controls/src/drivers"
 	repoExtractDir := "./extracted/repo"
-	configJsonDir := "./extracted/repo/PlantCare-esp32-production/src"
+	configJsonDir := "./extracted/repo/PlantCare-esp32-controls/src"
 	sensorDriverConfig := make(map[string]string)
+	controlConfig := []types.DriverJsonConfig{}
+	// --SENSORS--
 
 	// Clean up any previous artifacts
 	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
@@ -48,7 +51,7 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
 	}
 
 	// Process each driver URL
-	for serialNumber, driverURL := range driverURLs {
+	for serialNumber, driverURL := range sensorDriverURLs {
 		zipUrl, err := convertGitHubURLToZip(driverURL, "main")
 		if err != nil {
 			return err
@@ -77,15 +80,58 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
 		sensorDriverConfig[serialNumber] = className
 	}
 
+	// --CONTROLS--
+	
+
+	for _, control := range driverConfig {
+		zipUrl, err := convertGitHubURLToZip(control.DriverURL, "main")
+		if err != nil {
+			return err
+		}
+
+		// Download and extract the control files
+		if err := DownloadFile(zipUrl, driverZipFilePath); err != nil {
+			return err
+		}
+		if err := Unzip(driverZipFilePath, driverExtractDir); err != nil {
+			return err
+		}
+
+		// Find the control source directory and class name
+		controlFilePath, err := FindSrcDir(driverExtractDir, control.DriverURL)
+		if err != nil {
+			return err
+		}
+
+		className, err := FindClassName(controlFilePath)
+		if err != nil {
+			return err
+		}
+
+		// Store the control configuration based on the control serial number
+		controlConfig = append(controlConfig, types.DriverJsonConfig{
+			SerialNumber:    control.SerialNumber,
+			DriverURL:       control.DriverURL,
+			DependantSensor: control.DependantSensorSerial,
+			MinValue:        control.MinValue,
+			MaxValue:        control.MaxValue,
+			Classname:       className,
+		})
+	}
+
+
+
+
+
 	// Write the configuration JSON file
 	configPath := filepath.Join(configJsonDir, "config.json")
-	if err := WriteConfigJSON(configPath, sensorDriverConfig); err != nil {
+	if err := WriteConfigJSON(configPath, sensorDriverConfig, controlConfig); err != nil {
 		return err
 	}
 
 
 	// Prepare the PlatformIO OTA command
-	firmwarePath := filepath.Join(repoExtractDir, "PlantCare-esp32-production")
+	firmwarePath := filepath.Join(repoExtractDir, "PlantCare-esp32-controls")
 	cmd := exec.Command("pio", "run")
 	cmd.Dir = firmwarePath
 	var out bytes.Buffer
@@ -129,7 +175,7 @@ func UploadMultipleDrivers(driverURLs map[string]string, potConn *wsTypes.Connec
 // UploadDriver handles the upload and processing of the driver
 func UploadDriver(GitURL string, potIdStr string) *error {
 
-	zipUrl, err := convertGitHubURLToZip(GitURL, "production")
+	zipUrl, err := convertGitHubURLToZip(GitURL, "controls")
 	if err != nil {
 		return &err
 	}
@@ -143,7 +189,7 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 
 	driverZipFilePath := "./driver.zip"
 	repoZipFilePath := "./repo.zip"
-	driverExtractDir := "./extracted/repo/PlantCare-esp32-production/lib"
+	driverExtractDir := "./extracted/repo/PlantCare-esp32-controls/lib"
 	repoExtractDir := "./extracted/repo"
 
 	if err := cleanUp(driverExtractDir, repoExtractDir, driverZipFilePath, repoZipFilePath); err != nil {
@@ -161,7 +207,7 @@ func UploadDriver(GitURL string, potIdStr string) *error {
 	}
 
 	// Download the repository ZIP file
-	if err := DownloadFile("https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/production.zip", repoZipFilePath); err != nil {
+	if err := DownloadFile("https://github.com/MityoDraganov/PlantCare-esp32/archive/refs/heads/controls.zip", repoZipFilePath); err != nil {
 		return &err
 	}
 

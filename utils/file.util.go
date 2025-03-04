@@ -1,10 +1,10 @@
 package utils
 
 import (
+	"PlantCare/types"
 	"archive/zip"
 	"encoding/json"
 	"fmt"
-	"PlantCare/types"
 	"io"
 	"io/fs"
 	"net/http"
@@ -201,9 +201,8 @@ func FindClassName(filePath string) (string, error) {
 	return "", fmt.Errorf("no class declaration or member function found in the file")
 }
 
-
 // WriteConfigJSON creates a JSON file in the desired structure
-func WriteConfigJSON(configPath string, sensorDriverConfig map[string]string, controlDriverConfig map[string]string) error {
+func WriteConfigJSON(configPath string, sensorDriverConfig map[string]string, controlDriverConfig []types.DriverJsonConfig) error {
 	// Create the output file
 	configFile, err := os.Create(configPath)
 	if err != nil {
@@ -224,42 +223,18 @@ func WriteConfigJSON(configPath string, sensorDriverConfig map[string]string, co
 		config.Sensors = append(config.Sensors, sensor)
 	}
 
-	// Adding a control entry, as a placeholder (you can populate it dynamically as needed)
-	control := types.Control{
-		SerialNumber: "",
-		Type:         "WaterPump",
-		DependantSensor: struct {
-			SerialNumber string `json:"serialNumber"`
-			MinValue     int    `json:"minValue"`
-			MaxValue     int    `json:"maxValue"`
-		}{
-			SerialNumber: "YKTMgxAKCwE5jNXo", // Example, adjust based on your logic
-			MinValue:     0,
-			MaxValue:     50,
-		},
-	}
-
-	for serialNumber, className := range controlDriverConfig {
+	for _, driver := range controlDriverConfig {
 		control := types.Control{
-			SerialNumber: serialNumber,
-			Type:         className,
-			DependantSensor: struct {
-				SerialNumber string `json:"serialNumber"`
-				MinValue     int    `json:"minValue"`
-				MaxValue     int    `json:"maxValue"`
-			}{
-				SerialNumber: "YKTMgxAKCwE5jNXo", // Example, adjust based on your logic
-				MinValue:     0,
-				MaxValue:     50,
+			SerialNumber: driver.SerialNumber,
+			Type:         driver.Classname,
+			MinValue:     driver.MinValue,
+			MaxValue:     driver.MaxValue,
+			DependantSensor: types.DependantSensor{
+				SerialNumber: driver.DependantSensor.SerialNumber,
 			},
 		}
 		config.Controls = append(config.Controls, control)
 	}
-
-
-
-	// Add control to the config
-	config.Controls = append(config.Controls, control)
 
 	// Create a JSON encoder with indentation
 	encoder := json.NewEncoder(configFile)

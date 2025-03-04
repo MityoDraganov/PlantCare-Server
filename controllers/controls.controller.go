@@ -168,20 +168,12 @@ func mapControlToDTO(control models.Control) dtos.ControlDto {
 		SerialNumber: control.SerialNumber,
 		Alias:        control.Alias,
 		Description:  utils.CoalesceString(control.Description),
-		Updates:      control.Updates,
+		
 		IsOfficial:   true, // Set this as per your business logic
-		// Condition: &dtos.ConditionDto{
-		// 	On:  control.Condition.On,
-		// 	Off: control.Condition.Off,
-		// 	DependentSensor: func() *dtos.SensorDto {
-		// 		if control.Condition.DependentSensor != nil {
-		// 			dto := MapSensorToDTO(*control.Condition.DependentSensor)
-		// 			return &dto
-		// 		}
-		// 		return nil
-		// 	}(),
-		// },
-
+		MinValue:     utils.CoalesceInt(control.MinValue),
+		MaxValue:     utils.CoalesceInt(control.MaxValue),
+		DependantSensorId: control.DependantSensorID,
+		DriverUrl: control.DriverUrl,
 	}
 
 }

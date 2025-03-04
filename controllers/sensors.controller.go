@@ -4,6 +4,7 @@ import (
 	"PlantCare/dtos"
 	"PlantCare/initPackage"
 	"PlantCare/models"
+	"PlantCare/types"
 	"PlantCare/utils"
 	"PlantCare/websocket/connectionManager"
 	"PlantCare/websocket/otaManager"
@@ -25,13 +26,21 @@ type SensorConfig struct {
 	DriverURL    string `json:"driverUrl"`
 }
 
+
+
+type UpdateDto struct {
+	SensorDtos  []dtos.SensorUserRequestDto `json:"sensorDtos"`
+	ControlDtos []dtos.ControlUserRequestDto `json:"controlDtos"`
+}
+
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
-	var sensorDtos []dtos.SensorUserRequestDto
+	var updateDto UpdateDto
 	driverURLs := make(map[string]string)
 	var potId uint
 	var sensorConfigs []SensorConfig
+	var driverConfig []types.DriverConfig
 
-	err := json.NewDecoder(r.Body).Decode(&sensorDtos)
+	err := json.NewDecoder(r.Body).Decode(&updateDto)
 	if err != nil {
 		log.Println(err)
 		utils.JsonError(w, "Invalid JSON format", http.StatusBadRequest)
@@ -46,7 +55,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	for _, sensorDto := range sensorDtos {
+	for _, sensorDto := range updateDto.SensorDtos {
 		sensorDbObject, err := findSensorById(uint(sensorDto.ID))
 		if err != nil {
 			tx.Rollback()
@@ -102,6 +111,88 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Update the control objects
+	for _, controlDto := range updateDto.ControlDtos {
+
+
+		controlDbObject, err := findControlById(uint(controlDto.ID))
+		if err != nil {
+			tx.Rollback()
+			log.Printf("Control not found: %v", err)
+			utils.JsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
+
+		controlUpdate := models.Control{
+			Alias:       controlDto.Alias,
+			Description: controlDto.Description,
+		}
+
+		result := tx.Model(controlDbObject).Updates(controlUpdate).Clauses(clause.Returning{})
+		if result.Error != nil {
+			tx.Rollback()
+			log.Printf("Failed to update control: %v", result.Error)
+			utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if controlDto.DriverUrl != "" {
+			log.Println("Updating Driver URL for control...")
+			if controlDbObject.Driver == nil {
+				log.Println("Driver not found, creating new driver for control.")
+				driver := models.Driver{
+					DownloadUrl: controlDto.DriverUrl,
+				}
+				if err := tx.Create(&driver).Error; err != nil {
+					log.Printf("Failed to create new driver for control: %v", err)
+					tx.Rollback()
+					utils.JsonError(w, "Failed to create new driver for control", http.StatusInternalServerError)
+					return
+				}
+				fmt.Println("Control driver created")
+				controlDbObject.Driver = &driver
+				tx.Save(controlDbObject)
+				fmt.Println("Control saved")
+			} else {
+				log.Println("Driver found, updating URL for control.")
+				controlDbObject.Driver.DownloadUrl = controlDto.DriverUrl
+				if err := tx.Save(controlDbObject.Driver).Error; err != nil {
+					log.Printf("Failed to update driver URL for control: %v", err)
+					tx.Rollback()
+					utils.JsonError(w, "Failed to update driver URL for control", http.StatusInternalServerError)
+					return
+				}
+			}
+
+
+			// dependentSensor, err := FindSensorBySerialNum(controlDto.DependantSensorSerial)
+			// fmt.Println("blocked here?")
+			// if err != nil || dependentSensor == nil {
+			// 	tx.Rollback()
+			// 	log.Printf("Dependant sensor not found: %v", err)
+			// 	utils.JsonError(w, err.Error(), http.StatusNotFound)
+			// 	return
+			// }
+
+			fmt.Println("Dependant sensor found")
+
+			driverConfig = append(driverConfig, types.DriverConfig{
+				SerialNumber: controlDbObject.SerialNumber,
+				DriverURL:    controlDto.DriverUrl,
+				MinValue:     *controlDto.MinValue,
+				MaxValue:     *controlDto.MaxValue,
+
+				DependantSensorSerial: types.DependantSensor{
+					SerialNumber: controlDto.DependantSensorSerial,
+				},
+			})
+			//driverURLs[controlDbObject.SerialNumber] = controlDto.DriverUrl
+			potId = controlDbObject.CropPotID
+
+			fmt.Println("Control driverConfig updated")
+		}
+	}
+
 	go func() {
 		claims, ok := clerk.SessionClaimsFromContext(r.Context())
 		if !ok {
@@ -112,30 +203,28 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		clerkUserID := claims.Subject
 		userConn, isExisting := connectionManager.ConnManager.GetConnectionByKey(clerkUserID)
 
-			potIDStr := strconv.FormatUint(uint64(potId), 10)
-			connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
-			if !ok {
-				err := errors.New("connection not found for pot ID: " + potIDStr + "! Adding update to pendings.")
-				if isExisting {
-					wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
-				}
-				otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
-				return
-			}
+		potIDStr := strconv.FormatUint(uint64(potId), 10)
+		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
+		if !ok {
+			err := errors.New("connection not found for pot ID: " + potIDStr + "! Adding update to pendings.")
 			if isExisting {
-				wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
+				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
 			}
+			otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
+			return
+		}
+		if isExisting {
+			wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
+		}
 
+		if err := utils.UploadMultipleDrivers(driverURLs, driverConfig, connection); err != nil {
+			log.Printf("Failed to upload driver: %v", err)
 
-			if err := utils.UploadMultipleDrivers(driverURLs, connection); err != nil {
-				log.Printf("Failed to upload driver: %v", err)
-
-				if isExisting {
-					wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
-				}
-				return
+			if isExisting {
+				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
 			}
-			
+			return
+		}
 
 	}()
 
@@ -147,7 +236,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 
 	// Return the updated array of sensorDtos
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(sensorDtos); err != nil {
+	if err := json.NewEncoder(w).Encode(updateDto); err != nil {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 	}
 }

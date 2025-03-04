@@ -5,12 +5,28 @@ import (
 	"time"
 )
 
+func UintPtrToString(u *uint) *string {
+	if u == nil {
+		return nil
+	}
+	s := fmt.Sprint(*u)
+	return &s
+}
+
 func CoalesceString(s *string) *string {
 	if s == nil {
 		empty := ""
 		return &empty
 	}
 	return s
+}
+
+func CoalesceInt(i *int) *int {
+	if i == nil {
+		zero := 0
+		return &zero
+	}
+	return i
 }
 
 func StringPtr(s string) *string {

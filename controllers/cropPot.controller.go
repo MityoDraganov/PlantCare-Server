@@ -233,9 +233,6 @@ func FindPotsByUserId(userId string) ([]models.CropPot, error) {
 		Preload("Sensors.Measurements").
 		Preload("Sensors.Driver").
 		Preload("Controls").
-		Preload("Controls.Updates").
-		Preload("Controls.Condition").
-		Preload("Controls.Condition.DependentSensor").
 		Preload("Webhooks").
 		Preload("Webhooks.SubscribedEvents").
 		Where("clerk_user_id = ?", userId).
