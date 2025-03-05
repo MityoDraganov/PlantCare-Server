@@ -22,10 +22,38 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// Interface for handling sensor data
+type SensorDataInterface interface {
+    GetSensors() []wsDtos.SensorMeasuremntDto
+}
+
+// Struct for sensor measurement data
+
+// Struct implementing the interface for incoming data
+type SensorData struct {
+    Sensors []wsDtos.SensorMeasuremntDto `json:"sensors"`
+}
+
+func (sd *SensorData) GetSensors() []wsDtos.SensorMeasuremntDto {
+    return sd.Sensors
+}
+
+
+
 func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.Connection) {
 	fmt.Println(data)
-	var sensorDataDto []wsDtos.SensorMeasuremntDto
-	var measurements []models.Measurement
+    var sensorData SensorData
+    var sensorDataDto []wsDtos.SensorMeasuremntDto
+    var measurements []models.Measurement
+
+	err := json.Unmarshal(data, &sensorData)
+    if err != nil {
+        fmt.Println("Error while unmarshaling sensor data:", err)
+        return
+    }
+
+    // Store the extracted data from sensorData.Sensors into sensorDataDto
+    sensorDataDto = sensorData.GetSensors()
 
 	role := connection.Role
 	potIdStr := connection.Context.Value(wsTypes.CropPotIDKey).(string)
@@ -52,11 +80,7 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 		return
 	}
 
-	err = json.Unmarshal(data, &sensorDataDto)
-	if err != nil {
-		fmt.Println("Error while unmarshaling sensor data:", err)
-		return
-	}
+
 
 	fmt.Printf("Handling sensor data: %+v\n", sensorDataDto)
 

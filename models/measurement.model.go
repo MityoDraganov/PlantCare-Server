@@ -9,6 +9,7 @@ import (
 
 type Measurement struct {
 	gorm.Model
+	ID                 uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	MeasurementGroupID uint
 	CreatedAt time.Time
 	SensorID  uint         `json:"sensorId"`
