@@ -111,10 +111,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Update the control objects
 	for _, controlDto := range updateDto.ControlDtos {
-
-
 		controlDbObject, err := findControlById(uint(controlDto.ID))
 		if err != nil {
 			tx.Rollback()
@@ -122,12 +119,18 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			utils.JsonError(w, err.Error(), http.StatusNotFound)
 			return
 		}
-
+	
+		// Update control information
 		controlUpdate := models.Control{
 			Alias:       controlDto.Alias,
 			Description: controlDto.Description,
+			MinValue: controlDto.MinValue,
+			MaxValue: controlDto.MaxValue,
+			DriverUrl: controlDto.DriverUrl,
+			DependantSensorSerial: &controlDto.DependantSensorSerial,
 		}
-
+	
+		// Apply updates to control
 		result := tx.Model(controlDbObject).Updates(controlUpdate).Clauses(clause.Returning{})
 		if result.Error != nil {
 			tx.Rollback()
@@ -135,7 +138,8 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
 			return
 		}
-
+	
+		// Handle Driver URL update
 		if controlDto.DriverUrl != "" {
 			log.Println("Updating Driver URL for control...")
 			if controlDbObject.Driver == nil {
@@ -149,49 +153,37 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 					utils.JsonError(w, "Failed to create new driver for control", http.StatusInternalServerError)
 					return
 				}
-				fmt.Println("Control driver created")
 				controlDbObject.Driver = &driver
-				tx.Save(controlDbObject)
-				fmt.Println("Control saved")
 			} else {
 				log.Println("Driver found, updating URL for control.")
 				controlDbObject.Driver.DownloadUrl = controlDto.DriverUrl
-				if err := tx.Save(controlDbObject.Driver).Error; err != nil {
-					log.Printf("Failed to update driver URL for control: %v", err)
-					tx.Rollback()
-					utils.JsonError(w, "Failed to update driver URL for control", http.StatusInternalServerError)
-					return
-				}
 			}
-
-
-			// dependentSensor, err := FindSensorBySerialNum(controlDto.DependantSensorSerial)
-			// fmt.Println("blocked here?")
-			// if err != nil || dependentSensor == nil {
-			// 	tx.Rollback()
-			// 	log.Printf("Dependant sensor not found: %v", err)
-			// 	utils.JsonError(w, err.Error(), http.StatusNotFound)
-			// 	return
-			// }
-
-			fmt.Println("Dependant sensor found")
-
+	
+			// Save the control with updated driver
+			if err := tx.Save(controlDbObject).Error; err != nil {
+				log.Printf("Failed to save control with updated driver: %v", err)
+				tx.Rollback()
+				utils.JsonError(w, "Failed to save control with updated driver", http.StatusInternalServerError)
+				return
+			}
+	
+			// Update driver config
 			driverConfig = append(driverConfig, types.DriverConfig{
 				SerialNumber: controlDbObject.SerialNumber,
 				DriverURL:    controlDto.DriverUrl,
 				MinValue:     *controlDto.MinValue,
 				MaxValue:     *controlDto.MaxValue,
-
+	
 				DependantSensorSerial: types.DependantSensor{
 					SerialNumber: controlDto.DependantSensorSerial,
 				},
 			})
-			//driverURLs[controlDbObject.SerialNumber] = controlDto.DriverUrl
 			potId = controlDbObject.CropPotID
-
-			fmt.Println("Control driverConfig updated")
+	
+			log.Println("Control driverConfig updated")
 		}
 	}
+	
 
 	go func() {
 		claims, ok := clerk.SessionClaimsFromContext(r.Context())

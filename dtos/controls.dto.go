@@ -10,7 +10,7 @@ type ControlDto struct {
 
 	MinValue          *int   `json:"minValue"`
 	MaxValue          *int   `json:"maxValue"`
-	DependantSensorId *uint `json:"dependantSensor"`
+	DependantSensorSerial *string `json:"dependantSensor"`
 	DriverUrl         string `json:"driverUrl"`
 	//ActivePeriod ActivePeriod `json:"activePeriod"`
 }

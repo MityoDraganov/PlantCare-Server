@@ -172,7 +172,7 @@ func mapControlToDTO(control models.Control) dtos.ControlDto {
 		IsOfficial:   true, // Set this as per your business logic
 		MinValue:     utils.CoalesceInt(control.MinValue),
 		MaxValue:     utils.CoalesceInt(control.MaxValue),
-		DependantSensorId: control.DependantSensorID,
+		DependantSensorSerial: utils.CoalesceString(control.DependantSensorSerial),
 		DriverUrl: control.DriverUrl,
 	}
 

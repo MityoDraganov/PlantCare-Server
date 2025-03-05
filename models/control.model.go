@@ -17,8 +17,7 @@ type Control struct {
 	
 	DriverID    *uint    // Foreign key to reference the software driver
 	Driver      *Driver `gorm:"foreignKey:DriverID;references:ID"` // Many sensors to one driver
-	DependantSensorID *uint
-	DependantSensor *Sensor `gorm:"foreignKey:DependantSensorID;references:ID"`
+	DependantSensorSerial *string
 	MinValue          *int
 	MaxValue          *int
 }
