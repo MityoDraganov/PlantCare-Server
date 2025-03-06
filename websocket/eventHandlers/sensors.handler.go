@@ -22,22 +22,9 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// Interface for handling sensor data
-type SensorDataInterface interface {
-    GetSensors() []wsDtos.SensorMeasuremntDto
-}
-
-// Struct for sensor measurement data
-
-// Struct implementing the interface for incoming data
 type SensorData struct {
     Sensors []wsDtos.SensorMeasuremntDto `json:"sensors"`
 }
-
-func (sd *SensorData) GetSensors() []wsDtos.SensorMeasuremntDto {
-    return sd.Sensors
-}
-
 
 
 func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.Connection) {
@@ -53,7 +40,7 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
     }
 
     // Store the extracted data from sensorData.Sensors into sensorDataDto
-    sensorDataDto = sensorData.GetSensors()
+    sensorDataDto = sensorData.Sensors
 
 	role := connection.Role
 	potIdStr := connection.Context.Value(wsTypes.CropPotIDKey).(string)
@@ -84,7 +71,9 @@ func (h *Handler) HandleMeasurements(data json.RawMessage, connection *wsTypes.C
 
 	fmt.Printf("Handling sensor data: %+v\n", sensorDataDto)
 
-	for _, sensorData := range sensorDataDto {
+	for index, sensorData := range sensorDataDto {
+
+		fmt.Printf("Handling sensor data: %+v at index: %d\n", sensorData, index)
 
 		sensorDbObject, err := controllers.FindSensorBySerialNum(sensorData.SensorSerialNumber)
 		if err != nil {
