@@ -226,9 +226,9 @@ for _, controlDto := range updateDto.ControlDtos {
 			return
 		}
 
-		if isExisting {
-			wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
-		}
+		// if isExisting {
+		// 	wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
+		// }
 
 		// Perform the driver upload asynchronously
 		log.Println("Uploading drivers...")
