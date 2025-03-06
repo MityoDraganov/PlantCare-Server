@@ -125,6 +125,81 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	fmt.Println("Starting control updates...")
+
+for _, controlDto := range updateDto.ControlDtos {
+	// Find the control in the database
+	controlDbObject, err := findControlById(uint(controlDto.ID))
+	if err != nil {
+		log.Printf("Control not found: %v", err)
+		utils.JsonError(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Update control information
+	controlUpdate := models.Control{
+		Alias:                 controlDto.Alias,
+		Description:           controlDto.Description,
+		MinValue:              controlDto.MinValue,
+		MaxValue:              controlDto.MaxValue,
+		DriverUrl:             controlDto.DriverUrl,
+		DependantSensorSerial: &controlDto.DependantSensorSerial,
+	}
+
+	// Apply updates to the control object
+	result := initPackage.Db.Model(controlDbObject).Updates(controlUpdate)
+	if result.Error != nil {
+		log.Printf("Failed to update control: %v", result.Error)
+		utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Handle Driver URL update if provided
+	if controlDto.DriverUrl != "" {
+		log.Println("Updating Driver URL for control...")
+
+		// Check if control has an existing driver
+		if controlDbObject.Driver == nil {
+			log.Println("Driver not found, creating a new driver for control.")
+			driver := models.Driver{
+				DownloadUrl: controlDto.DriverUrl,
+			}
+			// Create the new driver in the database
+			if err := initPackage.Db.Create(&driver).Error; err != nil {
+				log.Printf("Failed to create new driver for control: %v", err)
+				utils.JsonError(w, "Failed to create new driver for control", http.StatusInternalServerError)
+				return
+			}
+			controlDbObject.Driver = &driver
+		} else {
+			log.Println("Driver found, updating URL for control.")
+			controlDbObject.Driver.DownloadUrl = controlDto.DriverUrl
+		}
+
+		// Save the updated control with the new or updated driver
+		if err := initPackage.Db.Save(controlDbObject).Error; err != nil {
+			log.Printf("Failed to save control with updated driver: %v", err)
+			utils.JsonError(w, "Failed to save control with updated driver", http.StatusInternalServerError)
+			return
+		}
+
+		// Update driver config for later use
+		driverConfig = append(driverConfig, types.DriverConfig{
+			SerialNumber: controlDbObject.SerialNumber,
+			DriverURL:    controlDto.DriverUrl,
+			MinValue:     *controlDto.MinValue,
+			MaxValue:     *controlDto.MaxValue,
+			DependantSensorSerial: types.DependantSensor{
+				SerialNumber: controlDto.DependantSensorSerial,
+			},
+		})
+		potId = controlDbObject.CropPotID
+
+		log.Println("Control driverConfig updated")
+	}
+}
+
+
 	// Perform asynchronous operations after all database updates are done
 	go func() {
 		log.Println("Starting asynchronous driver update...")
