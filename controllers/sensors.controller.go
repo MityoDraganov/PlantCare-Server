@@ -32,15 +32,15 @@ type UpdateDto struct {
 	SensorDtos  []dtos.SensorUserRequestDto `json:"sensorDtos"`
 	ControlDtos []dtos.ControlUserRequestDto `json:"controlDtos"`
 }
-
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Updating sensor...")
+	log.Println("Updating sensor...")
 	var updateDto UpdateDto
 	driverURLs := make(map[string]string)
 	var potId uint
 	var sensorConfigs []SensorConfig
 	var driverConfig []types.DriverConfig
 
+	// Decode the request body into the UpdateDto
 	err := json.NewDecoder(r.Body).Decode(&updateDto)
 	if err != nil {
 		log.Println(err)
@@ -48,14 +48,17 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Start a new transaction
 	tx := initPackage.Db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
+			log.Printf("Transaction error: %v", r)
 			utils.JsonError(w, fmt.Sprintf("Transaction error: %v", r), http.StatusInternalServerError)
 		}
 	}()
 
+	// Process each sensor update
 	for _, sensorDto := range updateDto.SensorDtos {
 		sensorDbObject, err := findSensorById(uint(sensorDto.ID))
 		if err != nil {
@@ -92,17 +95,23 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 				sensorDbObject.Driver = &driver
-				tx.Save(sensorDbObject)
+				if err := tx.Save(sensorDbObject).Error; err != nil {
+					log.Printf("Failed to save sensor with new driver: %v", err)
+					tx.Rollback()
+					utils.JsonError(w, "Failed to save sensor with new driver", http.StatusInternalServerError)
+					return
+				}
 			} else {
 				log.Println("Driver found, updating URL.")
-				sensorDbObject.Driver.DownloadUrl = sensorDto.DriverUrl
-				if err := tx.Save(sensorDbObject.Driver).Error; err != nil {
+				if err := tx.Model(sensorDbObject.Driver).
+					Update("DownloadUrl", sensorDto.DriverUrl).Error; err != nil {
 					log.Printf("Failed to update driver URL: %v", err)
 					tx.Rollback()
 					utils.JsonError(w, "Failed to update driver URL", http.StatusInternalServerError)
 					return
 				}
 			}
+
 			sensorConfigs = append(sensorConfigs, SensorConfig{
 				SerialNumber: sensorDbObject.SerialNumber,
 				DriverURL:    sensorDto.DriverUrl,
@@ -112,86 +121,19 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-
-	fmt.Println("Starting control updates...")
-	for _, controlDto := range updateDto.ControlDtos {
-		controlDbObject, err := findControlById(uint(controlDto.ID))
-		if err != nil {
-			tx.Rollback()
-			log.Printf("Control not found: %v", err)
-			utils.JsonError(w, err.Error(), http.StatusNotFound)
-			return
-		}
-	
-		// Update control information
-		controlUpdate := models.Control{
-			Alias:       controlDto.Alias,
-			Description: controlDto.Description,
-			MinValue: controlDto.MinValue,
-			MaxValue: controlDto.MaxValue,
-			DriverUrl: controlDto.DriverUrl,
-			DependantSensorSerial: &controlDto.DependantSensorSerial,
-		}
-	
-		// Apply updates to control
-		result := tx.Model(controlDbObject).Updates(controlUpdate)//.Clauses(clause.Returning{})
-		if result.Error != nil {
-			tx.Rollback()
-			log.Printf("Failed to update control: %v", result.Error)
-			utils.JsonError(w, result.Error.Error(), http.StatusBadRequest)
-			return
-		}
-	
-		// Handle Driver URL update
-		if controlDto.DriverUrl != "" {
-			log.Println("Updating Driver URL for control...")
-			if controlDbObject.Driver == nil {
-				log.Println("Driver not found, creating new driver for control.")
-				driver := models.Driver{
-					DownloadUrl: controlDto.DriverUrl,
-				}
-				if err := tx.Create(&driver).Error; err != nil {
-					log.Printf("Failed to create new driver for control: %v", err)
-					tx.Rollback()
-					utils.JsonError(w, "Failed to create new driver for control", http.StatusInternalServerError)
-					return
-				}
-				controlDbObject.Driver = &driver
-			} else {
-				log.Println("Driver found, updating URL for control.")
-				controlDbObject.Driver.DownloadUrl = controlDto.DriverUrl
-			}
-	
-			// Save the control with updated driver
-			if err := tx.Save(controlDbObject).Error; err != nil {
-				log.Printf("Failed to save control with updated driver: %v", err)
-				tx.Rollback()
-				utils.JsonError(w, "Failed to save control with updated driver", http.StatusInternalServerError)
-				return
-			}
-	
-			// Update driver config
-			driverConfig = append(driverConfig, types.DriverConfig{
-				SerialNumber: controlDbObject.SerialNumber,
-				DriverURL:    controlDto.DriverUrl,
-				MinValue:     *controlDto.MinValue,
-				MaxValue:     *controlDto.MaxValue,
-	
-				DependantSensorSerial: types.DependantSensor{
-					SerialNumber: controlDto.DependantSensorSerial,
-				},
-			})
-			potId = controlDbObject.CropPotID
-	
-			log.Println("Control driverConfig updated")
-		}
+	// Commit the transaction before starting the goroutine
+	if err := tx.Commit().Error; err != nil {
+		log.Println("Transaction commit failed")
+		utils.JsonError(w, "Transaction commit failed", http.StatusInternalServerError)
+		return
 	}
-	
 
+	// Perform asynchronous operations after transaction commit
 	go func() {
+		log.Println("Starting asynchronous driver update...")
 		claims, ok := clerk.SessionClaimsFromContext(r.Context())
 		if !ok {
-			fmt.Println("Error extracting session claims")
+			log.Println("Error extracting session claims")
 			utils.JsonError(w, "Unauthorized: unable to extract session claims", http.StatusUnauthorized)
 			return
 		}
@@ -201,37 +143,33 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		potIDStr := strconv.FormatUint(uint64(potId), 10)
 		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
 		if !ok {
-			err := errors.New("connection not found for pot ID: " + potIDStr + "! Adding update to pendings.")
+			err := fmt.Errorf("connection not found for pot ID: %s! Adding update to pendings.", potIDStr)
+			log.Println(err)
 			if isExisting {
 				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
 			}
 			otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
 			return
 		}
+
 		if isExisting {
 			wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
 		}
 
 		if err := utils.UploadMultipleDrivers(driverURLs, driverConfig, connection); err != nil {
 			log.Printf("Failed to upload driver: %v", err)
-
 			if isExisting {
 				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
 			}
 			return
 		}
-
+		log.Println("Asynchronous driver update completed successfully.")
 	}()
-
-	// Commit the transaction after the OTA operation
-	if err := tx.Commit().Error; err != nil {
-		utils.JsonError(w, "Transaction commit failed", http.StatusInternalServerError)
-		return
-	}
 
 	// Return the updated array of sensorDtos
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(updateDto); err != nil {
+		log.Printf("Failed to encode response: %v", err)
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 	}
 }
