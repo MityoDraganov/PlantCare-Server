@@ -34,6 +34,7 @@ type UpdateDto struct {
 }
 
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Updating sensor...")
 	var updateDto UpdateDto
 	driverURLs := make(map[string]string)
 	var potId uint
