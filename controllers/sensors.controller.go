@@ -217,10 +217,10 @@ for _, controlDto := range updateDto.ControlDtos {
 		potIDStr := strconv.FormatUint(uint64(potId), 10)
 		connection, ok := connectionManager.ConnManager.GetConnection(potIDStr)
 		if !ok {
-			err := fmt.Errorf("connection not found for pot ID: %s! Adding update to pendings.", potIDStr)
+			err := fmt.Errorf("connection not found for pot ID: %s! Adding update to pendings", potIDStr)
 			log.Println(err)
 			if isExisting {
-				wsutils.SendMessage(userConn, "", wsTypes.AsyncError, err)
+				wsutils.SendMessage(userConn, wsTypes.CropPotOffline, "", err)
 			}
 			otaManager.OTAManager.AddOTAPending(potIDStr, driverURLs)
 			return

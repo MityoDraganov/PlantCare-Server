@@ -52,6 +52,8 @@ const (
 	DriverRequired  StatusResponse = "driverRequired"
 
 	MessageFound StatusResponse = "messageFound"
+
+	CropPotOffline StatusResponse = "cropPotOffline"
 )
 
 type Connection struct {
