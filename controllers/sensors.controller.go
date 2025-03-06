@@ -32,6 +32,8 @@ type UpdateDto struct {
 	SensorDtos  []dtos.SensorUserRequestDto `json:"sensorDtos"`
 	ControlDtos []dtos.ControlUserRequestDto `json:"controlDtos"`
 }
+
+
 func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 	log.Println("Updating sensor...")
 	var updateDto UpdateDto
@@ -73,6 +75,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			Description: sensorDto.Description,
 		}
 
+		// Update sensor details, use appropriate lock hints to avoid blocking
 		result := tx.Model(sensorDbObject).Updates(sensorUpdate).Clauses(clause.Returning{})
 		if result.Error != nil {
 			tx.Rollback()
@@ -81,6 +84,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// If driver URL is provided, handle the driver update
 		if sensorDto.DriverUrl != "" {
 			log.Println("Updating Driver URL...")
 			if sensorDbObject.Driver == nil {
@@ -112,6 +116,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+			// Collect sensor configuration for later use
 			sensorConfigs = append(sensorConfigs, SensorConfig{
 				SerialNumber: sensorDbObject.SerialNumber,
 				DriverURL:    sensorDto.DriverUrl,
@@ -121,7 +126,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Commit the transaction before starting the goroutine
+	// Commit the transaction early before launching asynchronous work
 	if err := tx.Commit().Error; err != nil {
 		log.Println("Transaction commit failed")
 		utils.JsonError(w, "Transaction commit failed", http.StatusInternalServerError)
@@ -156,6 +161,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 			wsutils.SendMessage(userConn, "", wsTypes.AsyncPromise, nil)
 		}
 
+		// Perform the driver upload asynchronously
 		if err := utils.UploadMultipleDrivers(driverURLs, driverConfig, connection); err != nil {
 			log.Printf("Failed to upload driver: %v", err)
 			if isExisting {
@@ -173,6 +179,8 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		utils.JsonError(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+
 
 func AddSensor(potId uint, sensorDto dtos.AttachSensor) (*models.Sensor, *error) {
 	sensor := models.Sensor{
