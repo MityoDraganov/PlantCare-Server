@@ -111,6 +111,8 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+
+	fmt.Println("Starting control updates...")
 	for _, controlDto := range updateDto.ControlDtos {
 		controlDbObject, err := findControlById(uint(controlDto.ID))
 		if err != nil {
@@ -131,7 +133,7 @@ func UpdateSensor(w http.ResponseWriter, r *http.Request) {
 		}
 	
 		// Apply updates to control
-		result := tx.Model(controlDbObject).Updates(controlUpdate).Clauses(clause.Returning{})
+		result := tx.Model(controlDbObject).Updates(controlUpdate)//.Clauses(clause.Returning{})
 		if result.Error != nil {
 			tx.Rollback()
 			log.Printf("Failed to update control: %v", result.Error)
