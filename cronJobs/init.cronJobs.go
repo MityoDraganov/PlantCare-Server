@@ -14,20 +14,20 @@ func StartCronJobs() {
 	c := cron.New()
 
 	// Add a function to check for new alerts every minute
-	_, err := c.AddFunc("@every 1h", func() {
+	// _, err := c.AddFunc("@every 1h", func() {
 
-		connections := connectionManager.ConnManager.GetConnectionsByRole(wsTypes.UserRole)
+	// 	connections := connectionManager.ConnManager.GetConnectionsByRole(wsTypes.UserRole)
 
-		for _, connection := range connections {
-			CheckAndSendAlerts(*connection)
-		}
+	// 	for _, connection := range connections {
+	// 		CheckAndSendAlerts(*connection)
+	// 	}
 
-	})
-	if err != nil {
-		log.Fatalf("Error scheduling cron job: %v", err)
-	}
+	// })
+	// if err != nil {
+	// 	log.Fatalf("Error scheduling cron job: %v", err)
+	// }
 
-	_, err = c.AddFunc("@every 1m", func() {
+	_, err := c.AddFunc("@every 1m", func() {
 		RequestAllSensorData()
 	})
 
