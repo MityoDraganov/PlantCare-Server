@@ -1,8 +1,6 @@
 package cronjobs
 
 import (
-	"PlantCare/websocket/connectionManager"
-	"PlantCare/websocket/wsTypes"
 	"log"
 
 	"github.com/robfig/cron/v3"
